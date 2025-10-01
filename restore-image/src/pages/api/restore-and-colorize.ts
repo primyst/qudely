@@ -1,28 +1,64 @@
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { restoreImage } from '@/lib/replicate'; // <- helper you’ll make
-import { saveToStorage, updateRestoration } from '@/lib/db'; // <- your db/storage utils
+import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
+import { insertRestoration, updateRestoration } from '@/lib/db';
+import { restoreImage, colorizeImage } from '@/lib/replicate';
+import { saveToStorage } from '@/lib/storage';
+import { ratelimit } from '@/lib/rate';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const supabase = createServerSupabaseClient({ req, res });
-  const { data: { user } } = await supabase.auth.getUser();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
+  const supabaseServer = createServerSupabaseClient({ req, res });
+  const { data: { user } } = await supabaseServer.auth.getUser();
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
+  // Rate limiting
+  const { success } = await ratelimit.limit(`pipeline:${user.id}`);
+  if (!success) return res.status(429).json({ error: 'Too many requests' });
+
   try {
-    const { input_url, recordId } = req.body;
+    const { input_url } = req.body;
+    if (!input_url || typeof input_url !== 'string') return res.status(400).json({ error: 'input_url required' });
 
-    // Step 1: Restore with replicate
-    const restoredUrl = await restoreImage(input_url);
+    // Insert job
+    const record = await insertRestoration({
+      user_id: user.id,
+      input_url,
+      status: 'restoring'
+    });
 
-    // Step 2: Save to storage, linked to user
-    const storedUrl = await saveToStorage(restoredUrl, user.id, 'restore');
+    // 1) Restore
+    const restoredPublic = await restoreImage(input_url);
+    const restoredStored = await saveToStorage(restoredPublic, user.id, 'restore');
 
-    // Step 3: Update DB
-    await updateRestoration(recordId, { restored_url: storedUrl });
+    await updateRestoration(record.id, {
+      restored_url: restoredStored,
+      status: 'colorizing',
+      meta: { restored_from: restoredPublic }
+    });
 
-    return res.status(200).json({ restoredUrl: storedUrl });
+    // 2) Colorize (input is the restoredStored or restoredPublic depending on what model can accept)
+    const colorInput = restoredStored; // stable URL in storage
+    const colorPublic = await colorizeImage(colorInput);
+    const colorStored = await saveToStorage(colorPublic, user.id, 'colorize');
+
+    // Final update
+    const final = await updateRestoration(record.id, {
+      colorized_url: colorStored,
+      status: 'done',
+      meta: { ...record.meta, colorized_from: colorPublic }
+    });
+
+    return res.status(200).json({
+      ok: true,
+      id: final.id,
+      restored_url: final.restored_url,
+      colorized_url: final.colorized_url
+    });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    console.error('pipeline error', err);
+    // Mark as failed if record exists? best-effort (we might not have created record)
+    try { if ((err as any).recordId) await updateRestoration((err as any).recordId, { status: 'failed' }); } catch (_) {}
+    return res.status(500).json({ error: err.message || 'Server error' });
   }
 }
