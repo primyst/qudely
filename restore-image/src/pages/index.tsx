@@ -3,51 +3,45 @@
 import { useState } from 'react';
 import UploadBox from '@/components/UploadBox';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
+import { replicateUtils } from '@/lib/replicate';
+import { saveToStorage } from '@/lib/storage';
 
 export default function Home() {
   const [status, setStatus] = useState<string | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [restoredUrl, setRestoredUrl] = useState<string | null>(null);
   const [colorizedUrl, setColorizedUrl] = useState<string | null>(null);
 
   const handleUpload = async (file: File) => {
     setStatus('Uploading...');
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) throw new Error('Upload failed');
-
-      const { input_url } = await uploadResponse.json();
+      // Create object URL for preview
+      const previewUrl = URL.createObjectURL(file);
+      setUploadedUrl(previewUrl);
 
       setStatus('Restoring...');
-      const restoreResponse = await fetch('/api/restore-and-colorize', {
-        method: 'POST',
-        body: JSON.stringify({ input_url }),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const restoredPublic = await replicateUtils.restoreImage(previewUrl);
 
-      if (!restoreResponse.ok) throw new Error('Restoration failed');
+      setRestoredUrl(restoredPublic);
+      setStatus('Colorizing...');
 
-      const { restored_url, colorized_url } = await restoreResponse.json();
-      setRestoredUrl(restored_url);
-      setColorizedUrl(colorized_url);
+      const colorPublic = await replicateUtils.colorizeImage(restoredPublic);
+      setColorizedUrl(colorPublic);
+
       setStatus('Done');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      setStatus(`Error: ${message}`);
+      setStatus(err instanceof Error ? `Error: ${err.message}` : 'Unknown error');
     }
   };
 
   return (
-    <div>
-      <h1>Photo Restoration & Colorization</h1>
+    <div className="max-w-3xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Photo Restoration & Colorization</h1>
+
       <UploadBox onUpload={handleUpload} />
-      {status && <p>Status: {status}</p>}
+
+      {status && <p className="mb-4">Status: {status}</p>}
+
       {restoredUrl && colorizedUrl && (
         <BeforeAfterSlider before={restoredUrl} after={colorizedUrl} />
       )}
