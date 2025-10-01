@@ -42,8 +42,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     return res.status(200).json({ ok: true, id: updated.id, restored_url: updated.restored_url });
-  } catch (err: any) {
-    console.error('restore error', err);
-    return res.status(500).json({ error: err.message || 'Server error' });
-  }
+  } catch (err: unknown) {
+  console.error('restore error', err);
+  const message = err instanceof Error ? err.message : 'Server error';
+  return res.status(500).json({ error: message });
+}
 }
