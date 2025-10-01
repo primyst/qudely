@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import Image from 'next/image';
 import { ReactCompareSlider, ReactCompareSliderHandle } from 'react-compare-slider';
 
 interface BeforeAfterSliderProps {
@@ -12,8 +12,24 @@ export default function BeforeAfterSlider({ before, after }: BeforeAfterSliderPr
   return (
     <div style={{ width: '100%', maxWidth: 600, margin: '1rem auto' }}>
       <ReactCompareSlider
-        itemOne={<img src={before} alt="Before" style={{ width: '100%', display: 'block' }} />}
-        itemTwo={<img src={after} alt="After" style={{ width: '100%', display: 'block' }} />}
+        itemOne={
+          <Image
+            src={before}
+            alt="Before"
+            width={600}
+            height={400}
+            style={{ width: '100%', display: 'block', height: 'auto' }}
+          />
+        }
+        itemTwo={
+          <Image
+            src={after}
+            alt="After"
+            width={600}
+            height={400}
+            style={{ width: '100%', display: 'block', height: 'auto' }}
+          />
+        }
         handle={<ReactCompareSliderHandle />}
       />
     </div>
