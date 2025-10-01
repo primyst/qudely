@@ -44,4 +44,4 @@ export default function Home() {
       {restoredUrl && <img src={restoredUrl} alt="Restored" />}
     </div>
   );
-}
+  }
