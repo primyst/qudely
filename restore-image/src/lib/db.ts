@@ -11,25 +11,29 @@ export type RestorationRecord = {
   meta?: any;
 };
 
-const table = 'restorations';
+const TABLE = 'restorations';
 
-export async function insertRestoration(record: RestorationRecord) {
-  if (!supabaseAdmin) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
-  const { data, error } = await supabaseAdmin.from(table).insert(record).select().single();
+function ensureAdmin() {
+  if (!supabaseAdmin) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY (server-only)');
+}
+
+export async function insertRestoration(record: Partial<RestorationRecord>) {
+  ensureAdmin();
+  const { data, error } = await supabaseAdmin!.from(TABLE).insert(record).select().single();
   if (error) throw error;
-  return data;
+  return data as RestorationRecord;
 }
 
 export async function updateRestoration(id: string, patch: Partial<RestorationRecord>) {
-  if (!supabaseAdmin) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
-  const { data, error } = await supabaseAdmin.from(table).update(patch).eq('id', id).select().single();
+  ensureAdmin();
+  const { data, error } = await supabaseAdmin!.from(TABLE).update(patch).eq('id', id).select().single();
   if (error) throw error;
-  return data;
+  return data as RestorationRecord;
 }
 
 export async function getRestoration(id: string) {
-  if (!supabaseAdmin) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
-  const { data, error } = await supabaseAdmin.from(table).select('*').eq('id', id).single();
+  ensureAdmin();
+  const { data, error } = await supabaseAdmin!.from(TABLE).select('*').eq('id', id).single();
   if (error) throw error;
-  return data;
+  return data as RestorationRecord;
 }
