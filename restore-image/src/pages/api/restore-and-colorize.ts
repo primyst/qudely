@@ -12,7 +12,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { data: { user } } = await supabaseServer.auth.getUser();
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
-  // Rate limiting
   const { success } = await ratelimit.limit(`pipeline:${user.id}`);
   if (!success) return res.status(429).json({ error: 'Too many requests' });
 
@@ -20,14 +19,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { input_url } = req.body;
     if (!input_url || typeof input_url !== 'string') return res.status(400).json({ error: 'input_url required' });
 
-    // Insert job
     const record = await insertRestoration({
       user_id: user.id,
       input_url,
       status: 'restoring'
     });
 
-    // 1) Restore
     const restoredPublic = await restoreImage(input_url);
     const restoredStored = await saveToStorage(restoredPublic, user.id, 'restore');
 
@@ -37,12 +34,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       meta: { restored_from: restoredPublic }
     });
 
-    // 2) Colorize (input is the restoredStored or restoredPublic depending on what model can accept)
-    const colorInput = restoredStored; // stable URL in storage
+    const colorInput = restoredStored;
     const colorPublic = await colorizeImage(colorInput);
     const colorStored = await saveToStorage(colorPublic, user.id, 'colorize');
 
-    // Final update
     const final = await updateRestoration(record.id, {
       colorized_url: colorStored,
       status: 'done',
@@ -55,10 +50,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       restored_url: final.restored_url,
       colorized_url: final.colorized_url
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('pipeline error', err);
-    // Mark as failed if record exists? best-effort (we might not have created record)
-    try { if ((err as any).recordId) await updateRestoration((err as any).recordId, { status: 'failed' }); } catch (_) {}
-    return res.status(500).json({ error: err.message || 'Server error' });
+    try {
+      if ('recordId' in (err as any)) await updateRestoration((err as any).recordId, { status: 'failed' });
+    } catch (_) {} // ignore
+    const message = err instanceof Error ? err.message : 'Server error';
+    return res.status(500).json({ error: message });
   }
 }
