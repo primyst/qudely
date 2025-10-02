@@ -19,7 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { input_url } = req.body;
-    if (!input_url || typeof input_url !== 'string') return res.status(400).json({ error: 'input_url required' });
+    if (!input_url || typeof input_url !== 'string') {
+      return res.status(400).json({ error: 'input_url required' });
+    }
 
     // Insert DB record immediately (pending)
     const record = await insertRestoration({
@@ -27,6 +29,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       input_url,
       status: 'restoring'
     });
+
+    // ✅ Guard against missing id
+    if (!record.id) {
+      return res.status(500).json({ error: 'Failed to create restoration record' });
+    }
 
     // Call replicate to restore
     const restoredPublicUrl = await restoreImage(input_url);
@@ -41,10 +48,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       meta: { restored_from: restoredPublicUrl }
     });
 
-    return res.status(200).json({ ok: true, id: updated.id, restored_url: updated.restored_url });
+    return res.status(200).json({
+      ok: true,
+      id: updated.id,
+      restored_url: updated.restored_url
+    });
   } catch (err: unknown) {
-  console.error('restore error', err);
-  const message = err instanceof Error ? err.message : 'Server error';
-  return res.status(500).json({ error: message });
-}
+    console.error('restore error', err);
+    const message = err instanceof Error ? err.message : 'Server error';
+    return res.status(500).json({ error: message });
+  }
 }
