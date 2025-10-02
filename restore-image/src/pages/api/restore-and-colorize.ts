@@ -25,6 +25,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       status: 'restoring'
     });
 
+    // ✅ Guard against missing record.id
+    if (!record.id) {
+      return res.status(500).json({ error: 'Failed to create restoration record' });
+    }
+
     const restoredPublic = await restoreImage(input_url);
     const restoredStored = await saveToStorage(restoredPublic, user.id, 'restore');
 
@@ -51,13 +56,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       colorized_url: final.colorized_url
     });
   } catch (err: unknown) {
-  console.error('pipeline error', err);
-  try {
-    if (typeof err === 'object' && err !== null && 'recordId' in err) {
-      await updateRestoration((err as { recordId: string }).recordId, { status: 'failed' });
-    }
-  } catch {} // ignore
-  const message = err instanceof Error ? err.message : 'Server error';
-  return res.status(500).json({ error: message });
-}
+    console.error('pipeline error', err);
+    try {
+      if (typeof err === 'object' && err !== null && 'recordId' in err) {
+        await updateRestoration((err as { recordId: string }).recordId, { status: 'failed' });
+      }
+    } catch {} // ignore
+    const message = err instanceof Error ? err.message : 'Server error';
+    return res.status(500).json({ error: message });
+  }
 }
