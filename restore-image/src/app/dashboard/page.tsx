@@ -18,20 +18,18 @@ export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
 
+  // Helper for cleaner .from usage
+  const profiles = () => supabase.from<Profile, Profile>("profiles");
+
   useEffect(() => {
     const fetchProfile = async () => {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         router.push("/auth/login");
         return;
       }
 
-      const { data, error: profileError } = await supabase
-        .from<Profile>("profiles")
+      const { data, error: profileError } = await profiles()
         .select("*")
         .eq("id", user.id)
         .single();
@@ -55,13 +53,12 @@ export default function DashboardPage() {
       return;
     }
 
-    // Call your AI pipeline here
+    // TODO: Call your AI pipeline here
     // const result = await fetch('/api/pipeline', { ... });
 
     // Increment trial count if not premium
     if (!profile.is_premium) {
-      const { data, error } = await supabase
-        .from<Profile>("profiles")
+      const { data, error } = await profiles()
         .update({ trial_count: profile.trial_count + 1 })
         .eq("id", profile.id)
         .select()
@@ -81,17 +78,18 @@ export default function DashboardPage() {
   const handleUpgrade = async () => {
     if (!profile) return;
 
-    const { error } = await supabase
-      .from<Profile>("profiles")
+    const { data, error } = await profiles()
       .update({ is_premium: true })
-      .eq("id", profile.id);
+      .eq("id", profile.id)
+      .select()
+      .single();
 
     if (error) {
       console.error(error);
       return;
     }
 
-    setProfile({ ...profile, is_premium: true });
+    setProfile(data);
     alert("Upgraded to premium! Unlimited access unlocked.");
   };
 
