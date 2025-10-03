@@ -40,7 +40,11 @@ export default async function handler(
       return res.status(400).json({ error: "input_url required" });
     }
 
-    const record = await insertRestoration({ user_id: finalUser.id, input_url, status: "restoring" });
+    const record = await insertRestoration({
+      user_id: finalUser.id,
+      input_url,
+      status: "restoring",
+    });
     if (!record.id) return res.status(500).json({ error: "Failed to create record" });
 
     // Step 1: Restore
@@ -63,15 +67,22 @@ export default async function handler(
       meta: { colorized_from: colorPublic },
     });
 
+    // ✅ Ensure id is defined
+    if (!final?.id) {
+      return res.status(500).json({ error: "Final record missing ID" });
+    }
+
     return res.status(200).json({
       ok: true,
-      id: final.id,
+      id: final.id, // now safe
       input_url,
-      restored_url: final.restored_url!,
-      colorized_url: final.colorized_url!,
+      restored_url: final.restored_url ?? "",
+      colorized_url: final.colorized_url ?? "",
     });
   } catch (err: unknown) {
     console.error("pipeline error", err);
-    return res.status(500).json({ error: err instanceof Error ? err.message : "Server error" });
+    return res.status(500).json({
+      error: err instanceof Error ? err.message : "Server error",
+    });
   }
 }
