@@ -10,7 +10,6 @@ const images = [
   { old: "/landmarkold.jpg", new: "/landmarknew.jpg" },
   { old: "/girlold.jpg", new: "/girlnew.jpg" },
   { old: "/familyold.jpg", new: "/familynew.jpg" },
-  { old: "/cowboyold.jpg", new: "/cowboynew.jpg" },
 ];
 
 export default function LandingPage() {
