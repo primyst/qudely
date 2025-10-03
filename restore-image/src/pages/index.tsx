@@ -10,47 +10,29 @@ export default function Home() {
   const [restoredUrl, setRestoredUrl] = useState<string | null>(null);
   const [colorizedUrl, setColorizedUrl] = useState<string | null>(null);
 
-  const handleUpload = async (file: File) => {
-    setStatus('Uploading...');
-    try {
-      // Preview on client
-      const previewUrl = URL.createObjectURL(file);
-      setUploadedUrl(previewUrl);
+  const handleUpload = async (uploadedUrl: string) => {
+  setUploadedUrl(uploadedUrl);
+  setStatus('Processing (restore + colorize)...');
 
-      // Send file to /api/upload (returns public input_url)
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: file,
-      });
+  try {
+    const pipelineRes = await fetch('/api/restore-and-colorize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input_url: uploadedUrl }),
+    });
 
-      if (!uploadRes.ok) {
-        throw new Error(`Upload failed: ${uploadRes.status}`);
-      }
-
-      const { input_url } = await uploadRes.json();
-
-      setStatus('Processing (restore + colorize)...');
-
-      // Call pipeline API
-      const pipelineRes = await fetch('/api/restore-and-colorize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input_url }),
-      });
-
-      if (!pipelineRes.ok) {
-        throw new Error(`Pipeline failed: ${pipelineRes.status}`);
-      }
-
-      const data = await pipelineRes.json();
-      setRestoredUrl(data.restored_url);
-      setColorizedUrl(data.colorized_url);
-
-      setStatus('Done');
-    } catch (err: unknown) {
-      setStatus(err instanceof Error ? `Error: ${err.message}` : 'Unknown error');
+    if (!pipelineRes.ok) {
+      throw new Error(`Pipeline failed: ${pipelineRes.status}`);
     }
-  };
+
+    const data = await pipelineRes.json();
+    setRestoredUrl(data.restored_url);
+    setColorizedUrl(data.colorized_url);
+    setStatus('Done');
+  } catch (err: unknown) {
+    setStatus(err instanceof Error ? `Error: ${err.message}` : 'Unknown error');
+  }
+};
 
   return (
     <div className="max-w-3xl mx-auto p-4">
