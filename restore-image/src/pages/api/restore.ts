@@ -24,7 +24,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<RestoreResponse | ErrorResponse>
 ) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   const finalUser = await getUserFromRequest(req, res);
   if (!finalUser) return res.status(401).json({ error: "Not authenticated" });
@@ -38,8 +40,12 @@ export default async function handler(
       return res.status(400).json({ error: "input_url required" });
     }
 
-    const record = await insertRestoration({ user_id: finalUser.id, input_url, status: "restoring" });
-    if (!record.id) return res.status(500).json({ error: "Failed to create record" });
+    // ✅ Use RestorationInsert
+    const record = await insertRestoration({
+      user_id: finalUser.id,
+      input_url,
+      status: "restoring",
+    });
 
     const restoredPublic = await restoreImage(input_url);
     const restoredStored = await saveToStorage(restoredPublic, finalUser.id, "restore");
