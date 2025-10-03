@@ -3,31 +3,40 @@
 import { useState } from 'react';
 import UploadBox from '@/components/UploadBox';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
+import { useSupabaseClient } from "@supabase/auth-helpers-react";
 
 export default function Home() {
   const [status, setStatus] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [restoredUrl, setRestoredUrl] = useState<string | null>(null);
   const [colorizedUrl, setColorizedUrl] = useState<string | null>(null);
+  const supabase = useSupabaseClient();
 
   const handleUpload = async (fileUrl: string) => {
     setStatus('Processing (restore + colorize)...');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const pipelineRes = await fetch('/api/restore-and-colorize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ input_url: fileUrl }),
       });
 
       if (!pipelineRes.ok) {
-        throw new Error(`Pipeline failed: ${pipelineRes.status}`);
+        const err = await pipelineRes.json().catch(() => ({ error: pipelineRes.statusText }));
+        throw new Error(err?.error || `Pipeline failed: ${pipelineRes.status}`);
       }
 
       const data = await pipelineRes.json();
 
-      // ✅ store the canonical input_url from API response
-      setUploadedUrl(data.input_url);
+      // store the canonical input_url from API response
+      setUploadedUrl(data.input_url ?? fileUrl);
 
       setRestoredUrl(data.restored_url);
       setColorizedUrl(data.colorized_url);
