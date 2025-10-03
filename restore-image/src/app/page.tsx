@@ -5,6 +5,7 @@ import Link from "next/link";
 import BeforeAfterSlider from "react-before-after-slider-component";
 import "react-before-after-slider-component/dist/build.css";
 
+// Images to showcase before/after
 const images = [
   { old: "/landmarkold.jpg", new: "/landmarknew.jpg" },
   { old: "/girlold.jpg", new: "/girlnew.jpg" },
@@ -35,12 +36,10 @@ export default function LandingPage() {
       <section className="mt-12 w-full max-w-4xl px-4 space-y-8">
         <h2 className="text-2xl font-bold text-center mb-6">Before & After AI Magic</h2>
         {images.map((img, idx) => (
-          <div key={idx} className="rounded shadow overflow-hidden">
+          <div key={idx} className="rounded shadow overflow-hidden w-full max-w-[640px] h-[400px] mx-auto">
             <BeforeAfterSlider
               firstImage={{ imageUrl: img.old }}
               secondImage={{ imageUrl: img.new }}
-              width={640}
-              height={400}
             />
           </div>
         ))}
