@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
-    // Parse incoming FormData
+    // Parse incoming FormData (raw stream)
     const chunks: Uint8Array[] = [];
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk) => chunks.push(chunk));
@@ -27,11 +27,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const buffer = Buffer.concat(chunks);
 
-    // Get file extension from Content-Type header
+    // Guess extension from Content-Type
     const contentType = req.headers['content-type'] || 'image/jpeg';
     const ext = contentType.split('/').pop() || 'jpg';
 
-    // File path: userId/YYYYMMDD/uuid.ext
     const filePath = `${user.id}/${new Date().toISOString().slice(0,10)}/${randomUUID()}.${ext}`;
 
     const { error } = await supabaseAdmin!.storage
@@ -40,14 +39,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (error) throw error;
 
-    // Get public URL
-    const { data: publicData } = supabaseAdmin!.storage.from('restored-images').getPublicUrl(filePath);
-    if (!publicData || !publicData.publicUrl) throw new Error('Failed to get public URL');
+    const { data: publicData } = supabaseAdmin!.storage
+      .from('restored-images')
+      .getPublicUrl(filePath);
 
-    return res.status(200).json({ input_url: publicData.publicUrl });
+    if (!publicData?.publicUrl) throw new Error('Failed to get public URL');
+
+    // ✅ Always return { url }
+    return res.status(200).json({ url: publicData.publicUrl });
   } catch (err: unknown) {
-  console.error('upload error', err);
-  const message = err instanceof Error ? err.message : 'Server error';
-  return res.status(500).json({ error: message });
-}
+    console.error('upload error', err);
+    const message = err instanceof Error ? err.message : 'Server error';
+    return res.status(500).json({ error: message });
+  }
 }
