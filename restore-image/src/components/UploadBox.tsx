@@ -14,11 +14,9 @@ export default function UploadBox({ onUpload }: UploadBoxProps) {
     if (!file) return;
 
     try {
-      // Prepare FormData
       const formData = new FormData();
       formData.append("file", file);
 
-      // Send to /api/upload
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -27,7 +25,6 @@ export default function UploadBox({ onUpload }: UploadBoxProps) {
       if (!res.ok) throw new Error("Upload failed");
 
       const data = await res.json();
-      // Assume /api/upload returns { url: string }
       if (data.url) {
         onUpload(data.url);
       } else {
