@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import UploadBox from '@/components/UploadBox';
 import BeforeAfterSlider from '@/components/BeforeAfterSlider';
-import { replicateUtils } from '@/lib/replicate';
-import { saveToStorage } from '@/lib/storage';
 
 export default function Home() {
   const [status, setStatus] = useState<string | null>(null);
@@ -15,18 +13,38 @@ export default function Home() {
   const handleUpload = async (file: File) => {
     setStatus('Uploading...');
     try {
-      // Create object URL for preview
+      // Preview on client
       const previewUrl = URL.createObjectURL(file);
       setUploadedUrl(previewUrl);
 
-      setStatus('Restoring...');
-      const restoredPublic = await replicateUtils.restoreImage(previewUrl);
+      // Send file to /api/upload (returns public input_url)
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: file,
+      });
 
-      setRestoredUrl(restoredPublic);
-      setStatus('Colorizing...');
+      if (!uploadRes.ok) {
+        throw new Error(`Upload failed: ${uploadRes.status}`);
+      }
 
-      const colorPublic = await replicateUtils.colorizeImage(restoredPublic);
-      setColorizedUrl(colorPublic);
+      const { input_url } = await uploadRes.json();
+
+      setStatus('Processing (restore + colorize)...');
+
+      // Call pipeline API
+      const pipelineRes = await fetch('/api/restore-and-colorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input_url }),
+      });
+
+      if (!pipelineRes.ok) {
+        throw new Error(`Pipeline failed: ${pipelineRes.status}`);
+      }
+
+      const data = await pipelineRes.json();
+      setRestoredUrl(data.restored_url);
+      setColorizedUrl(data.colorized_url);
 
       setStatus('Done');
     } catch (err: unknown) {
