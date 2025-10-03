@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
-// Define the shape of the profile from Supabase
+// Profile shape from Supabase
 interface Profile {
   id: string;
   email: string;
@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  // Fetch the user profile safely
+  // Fetch user profile safely
   useEffect(() => {
     const fetchProfile = async () => {
       const {
@@ -31,18 +31,19 @@ export default function DashboardPage() {
         return;
       }
 
-      const { data: profileData, error: profileError } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
-        .select<Profile>("*")
+        .select("*")
         .eq("id", user.id)
         .single();
 
-      if (profileError) {
-        console.error(profileError);
+      if (error) {
+        console.error(error);
         return;
       }
 
-      if (profileData) setProfile(profileData);
+      if (!data) return;
+      setProfile(data as Profile);
     };
 
     fetchProfile();
@@ -57,16 +58,16 @@ export default function DashboardPage() {
       return;
     }
 
-    // TODO: Replace with your AI pipeline call
+    // TODO: Replace with actual AI pipeline call
     // const result = await fetch('/api/pipeline', {...});
 
     // Increment trial count if not premium
     if (!profile.is_premium) {
-      const { data: updatedProfile, error } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .update({ trial_count: profile.trial_count + 1 })
         .eq("id", profile.id)
-        .select<Profile>()
+        .select("*")
         .single();
 
       if (error) {
@@ -74,7 +75,8 @@ export default function DashboardPage() {
         return;
       }
 
-      if (updatedProfile) setProfile(updatedProfile);
+      if (!data) return;
+      setProfile(data as Profile);
     }
 
     alert("Image processed!"); // placeholder
@@ -84,11 +86,11 @@ export default function DashboardPage() {
   const handleUpgrade = async () => {
     if (!profile) return;
 
-    const { data: updatedProfile, error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .update({ is_premium: true })
       .eq("id", profile.id)
-      .select<Profile>()
+      .select("*")
       .single();
 
     if (error) {
@@ -96,7 +98,8 @@ export default function DashboardPage() {
       return;
     }
 
-    if (updatedProfile) setProfile(updatedProfile);
+    if (!data) return;
+    setProfile(data as Profile);
     alert("Upgraded to premium! Unlimited access unlocked.");
   };
 
