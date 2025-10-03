@@ -1,29 +1,36 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import UploadBox from '@/components/UploadBox';
-import BeforeAfterSlider from '@/components/BeforeAfterSlider';
+import { useState } from "react";
+import UploadBox from "@/components/UploadBox";
+import BeforeAfterSlider from "@/components/BeforeAfterSlider";
 import { useSupabaseClient } from "@supabase/auth-helpers-react";
+
+interface PipelineResult {
+  input_url: string;
+  restored_url: string;
+  colorized_url: string;
+}
 
 export default function Home() {
   const [status, setStatus] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [restoredUrl, setRestoredUrl] = useState<string | null>(null);
   const [colorizedUrl, setColorizedUrl] = useState<string | null>(null);
+
   const supabase = useSupabaseClient();
 
   const handleUpload = async (fileUrl: string) => {
-    setStatus('Processing (restore + colorize)...');
+    setStatus("Processing (restore + colorize)...");
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const pipelineRes = await fetch('/api/restore-and-colorize', {
-        method: 'POST',
+      const pipelineRes = await fetch("/api/restore-and-colorize", {
+        method: "POST",
         headers,
         body: JSON.stringify({ input_url: fileUrl }),
       });
@@ -33,16 +40,19 @@ export default function Home() {
         throw new Error(err?.error || `Pipeline failed: ${pipelineRes.status}`);
       }
 
-      const data = await pipelineRes.json();
+      const data: PipelineResult = await pipelineRes.json();
 
-      // store the canonical input_url from API response
-      setUploadedUrl(data.input_url ?? fileUrl);
-
+      setUploadedUrl(data.input_url);
       setRestoredUrl(data.restored_url);
       setColorizedUrl(data.colorized_url);
-      setStatus('Done');
-    } catch (err: unknown) {
-      setStatus(err instanceof Error ? `Error: ${err.message}` : 'Unknown error');
+
+      setStatus("Done");
+    } catch (err) {
+      if (err instanceof Error) {
+        setStatus(`Error: ${err.message}`);
+      } else {
+        setStatus("Unknown error");
+      }
     }
   };
 
@@ -50,7 +60,8 @@ export default function Home() {
     <div className="max-w-3xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Photo Restoration & Colorization</h1>
 
-      <UploadBox onUpload={handleUpload} />
+      {/* 🔥 UploadBox now cleanly returns fileUrl */}
+      <UploadBox token={undefined} onUpload={handleUpload} />
 
       {status && <p className="mb-4">Status: {status}</p>}
 
