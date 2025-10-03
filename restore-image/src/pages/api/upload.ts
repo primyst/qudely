@@ -2,34 +2,33 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { supabaseAdmin } from '@/lib/supabase';
 import { randomUUID } from 'crypto';
+import type { User } from '@supabase/supabase-js';  // 👈 proper type
 
 export const config = {
   api: {
-    bodyParser: false, // we will use FormData
+    bodyParser: false,
   },
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Try server cookie-based user first
   const supabaseServer = createServerSupabaseClient({ req, res });
   const { data: { user } } = await supabaseServer.auth.getUser();
 
-  // If no cookie-based user, accept an Authorization: Bearer <token> header
-  let finalUser = user;
+  let finalUser: User | null = user;  // 👈 explicitly typed
+
   if (!finalUser) {
     const authHeader = (req.headers.authorization || req.headers.Authorization) as string | undefined;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       try {
-        // Use admin client to fetch user from token
         const { data: tokenUser, error } = await supabaseAdmin!.auth.getUser(token);
         if (!error && tokenUser?.user) {
-          finalUser = tokenUser.user as any;
+          finalUser = tokenUser.user;  // 👈 already type-safe
         }
-      } catch (e) {
-        // fall through to unauthenticated
+      } catch {
+        // ignore
       }
     }
   }
@@ -37,7 +36,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!finalUser) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
-    // Parse incoming FormData (raw stream)
     const chunks: Uint8Array[] = [];
     await new Promise<void>((resolve, reject) => {
       req.on('data', (chunk) => chunks.push(chunk));
@@ -46,8 +44,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const buffer = Buffer.concat(chunks);
-
-    // Guess extension from Content-Type (FormData won't set this correctly but works in many cases)
     const contentType = req.headers['content-type'] || 'image/jpeg';
     const ext = contentType.split('/').pop() || 'jpg';
 
