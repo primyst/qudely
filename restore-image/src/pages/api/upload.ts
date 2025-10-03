@@ -45,8 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!publicData?.publicUrl) throw new Error('Failed to get public URL');
 
-    // ✅ Always return { url }
-    return res.status(200).json({ url: publicData.publicUrl });
+    return res.status(200).json({ input_url: publicData.publicUrl });
   } catch (err: unknown) {
     console.error('upload error', err);
     const message = err instanceof Error ? err.message : 'Server error';
