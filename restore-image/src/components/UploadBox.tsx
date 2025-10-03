@@ -3,13 +3,20 @@
 import React, { useState } from "react";
 
 interface UploadBoxProps {
-  token?: string; // optional Bearer token from Supabase client
+  token?: string;
+}
+
+// 👇 Define proper type
+interface PipelineResult {
+  input_url: string;
+  restored_url: string;
+  colorized_url: string;
 }
 
 export default function UploadBox({ token }: UploadBoxProps) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<PipelineResult | null>(null); // 👈 no any
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -21,7 +28,6 @@ export default function UploadBox({ token }: UploadBoxProps) {
     if (!file) return;
     setLoading(true);
     try {
-      // 1. Upload to /api/upload
       const formData = new FormData();
       formData.append("file", file);
 
@@ -34,7 +40,6 @@ export default function UploadBox({ token }: UploadBoxProps) {
       if (!uploadRes.ok) throw new Error("Upload failed");
       const { input_url } = await uploadRes.json();
 
-      // 2. Send to /api/pipeline (restore + colorize)
       const pipeRes = await fetch("/api/pipeline", {
         method: "POST",
         headers: {
@@ -45,7 +50,7 @@ export default function UploadBox({ token }: UploadBoxProps) {
       });
 
       if (!pipeRes.ok) throw new Error("Pipeline failed");
-      const data = await pipeRes.json();
+      const data: PipelineResult = await pipeRes.json(); // 👈 strong type
 
       setResult(data);
     } catch (err) {
