@@ -51,6 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       ok: true,
       id: updated.id,
+      input_url, // keep original input_url in response
       restored_url: updated.restored_url
     });
   } catch (err: unknown) {
