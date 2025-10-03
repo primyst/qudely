@@ -37,8 +37,8 @@ export default function LandingPage() {
         {images.map((img, idx) => (
           <div key={idx} className="rounded shadow overflow-hidden">
             <BeforeAfterSlider
-              firstImage={Object.assign(new Image(), { src: img.old })}
-              secondImage={Object.assign(new Image(), { src: img.new })}
+              firstImage={{ imageUrl: img.old }}
+              secondImage={{ imageUrl: img.new }}
               width={640}
               height={400}
             />
