@@ -1,26 +1,47 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import UploadBox from "@/components/UploadBox";
+"use client";
+
+import React, { useState } from "react";
+import UploadForm from "../components/UploadForm";
+import { RestorationInsert } from "../types";
 
 export default function Dashboard() {
-  const [token, setToken] = useState<string | undefined>(undefined);
+  const [restorations, setRestorations] = useState<RestorationInsert[]>([]);
 
-  useEffect(() => {
-    const getToken = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        setToken(session.access_token);
-      }
-    };
-    getToken();
-  }, []);
+  // callback to handle new uploads
+  const handleUpload = (restoration: RestorationInsert) => {
+    setRestorations((prev) => [...prev, restoration]);
+  };
 
   return (
-    <div className="p-8">
-      <h1 className="text-xl font-bold mb-4">Upload & Restore</h1>
-      <UploadBox token={token} />
+    <div className="p-6">
+      <h1 className="text-xl font-bold mb-4">Dashboard</h1>
+
+      {/* Upload Form with onUpload */}
+      <UploadForm onUpload={handleUpload} />
+
+      {/* Show restorations */}
+      <ul className="mt-6 space-y-2">
+        {restorations.map((r, i) => (
+          <li
+            key={i}
+            className="border rounded p-2 bg-gray-50 flex flex-col gap-1"
+          >
+            <span>
+              <strong>Original:</strong> {r.original_url}
+            </span>
+            {r.restored_url && (
+              <span>
+                <strong>Restored:</strong> {r.restored_url}
+              </span>
+            )}
+            {r.colorized_url && (
+              <span>
+                <strong>Colorized:</strong> {r.colorized_url}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
