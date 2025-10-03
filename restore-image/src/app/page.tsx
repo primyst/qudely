@@ -1,7 +1,9 @@
 "use client";
 
-import Slider from "react-slick";
+import React from "react";
 import Link from "next/link";
+import BeforeAfterSlider from "react-before-after-slider-component";
+import "react-before-after-slider-component/dist/build.css";
 
 const images = [
   { old: "/landmarkold.jpg", new: "/landmarknew.jpg" },
@@ -11,14 +13,6 @@ const images = [
 ];
 
 export default function LandingPage() {
-  const settings = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center">
       {/* Hero Section */}
@@ -37,23 +31,19 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Before/After Slider */}
-      <section className="mt-12 w-full max-w-4xl px-4">
+      {/* Draggable Before/After Slider */}
+      <section className="mt-12 w-full max-w-4xl px-4 space-y-8">
         <h2 className="text-2xl font-bold text-center mb-6">Before & After AI Magic</h2>
-        <Slider {...settings}>
-          {images.map((img, idx) => (
-            <div key={idx} className="flex justify-center space-x-4">
-              <div className="flex flex-col items-center">
-                <img src={img.old} alt="Before" className="w-64 h-64 object-cover rounded shadow" />
-                <span className="mt-2 font-medium">Before</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <img src={img.new} alt="After" className="w-64 h-64 object-cover rounded shadow" />
-                <span className="mt-2 font-medium">After</span>
-              </div>
-            </div>
-          ))}
-        </Slider>
+        {images.map((img, idx) => (
+          <div key={idx} className="rounded shadow overflow-hidden">
+            <BeforeAfterSlider
+              firstImage={img.old}
+              secondImage={img.new}
+              width={640}
+              height={400}
+            />
+          </div>
+        ))}
       </section>
 
       {/* Footer / By Primyst */}
@@ -68,4 +58,4 @@ export default function LandingPage() {
       </footer>
     </div>
   );
-      
+}
