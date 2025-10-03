@@ -5,7 +5,6 @@ import { saveToStorage } from "@/lib/storage";
 import { ratelimit } from "@/lib/rate";
 import { getUserFromRequest } from "@/lib/auth";
 
-// ---- Strong types ----
 interface PipelineRequest {
   input_url: string;
 }
@@ -26,7 +25,9 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<PipelineResponse | ErrorResponse>
 ) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   const finalUser = await getUserFromRequest(req, res);
   if (!finalUser) return res.status(401).json({ error: "Not authenticated" });
@@ -40,12 +41,12 @@ export default async function handler(
       return res.status(400).json({ error: "input_url required" });
     }
 
+    // ✅ Use RestorationInsert
     const record = await insertRestoration({
       user_id: finalUser.id,
       input_url,
       status: "restoring",
     });
-    if (!record.id) return res.status(500).json({ error: "Failed to create record" });
 
     // Step 1: Restore
     const restoredPublic = await restoreImage(input_url);
@@ -67,22 +68,15 @@ export default async function handler(
       meta: { colorized_from: colorPublic },
     });
 
-    // ✅ Ensure id is defined
-    if (!final?.id) {
-      return res.status(500).json({ error: "Final record missing ID" });
-    }
-
     return res.status(200).json({
       ok: true,
-      id: final.id, // now safe
+      id: final.id,
       input_url,
-      restored_url: final.restored_url ?? "",
-      colorized_url: final.colorized_url ?? "",
+      restored_url: final.restored_url!,
+      colorized_url: final.colorized_url!,
     });
   } catch (err: unknown) {
     console.error("pipeline error", err);
-    return res.status(500).json({
-      error: err instanceof Error ? err.message : "Server error",
-    });
+    return res.status(500).json({ error: err instanceof Error ? err.message : "Server error" });
   }
 }
