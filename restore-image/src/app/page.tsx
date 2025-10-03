@@ -37,8 +37,8 @@ export default function LandingPage() {
         {images.map((img, idx) => (
           <div key={idx} className="rounded shadow overflow-hidden">
             <BeforeAfterSlider
-              firstImage={img.old}
-              secondImage={img.new}
+              firstImage={Object.assign(new Image(), { src: img.old })}
+              secondImage={Object.assign(new Image(), { src: img.new })}
               width={640}
               height={400}
             />
@@ -46,7 +46,7 @@ export default function LandingPage() {
         ))}
       </section>
 
-      {/* Footer / By Primyst */}
+      {/* Footer */}
       <footer className="mt-16 py-8 w-full text-center bg-gray-100">
         <p className="text-sm mb-2">By Primyst</p>
         <div className="space-x-4">
