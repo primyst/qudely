@@ -1,49 +1,62 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useRef } from "react";
 
 interface UploadBoxProps {
-  onUpload: (file: File) => void;
+  onUpload: (uploadedUrl: string) => void;
 }
 
 export default function UploadBox({ onUpload }: UploadBoxProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      onUpload(selectedFile);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-      const url = URL.createObjectURL(selectedFile);
-      setPreviewUrl(url);
+    try {
+      // Prepare FormData
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Send to /api/upload
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Upload failed");
+
+      const data = await res.json();
+      // Assume /api/upload returns { url: string }
+      if (data.url) {
+        onUpload(data.url);
+      } else {
+        throw new Error("No URL returned from upload API");
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Upload failed. Please try again.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  // Clean up the object URL when component unmounts or file changes
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
   return (
-    <div className="my-4">
-      <input type="file" accept="image/*" onChange={handleFileChange} />
-      {file && <p>Selected file: {file.name}</p>}
-      {previewUrl && (
-        <div style={{ marginTop: '1rem', maxWidth: 400 }}>
-          <Image
-            src={previewUrl}
-            alt="Preview"
-            width={400}
-            height={400}
-            style={{ width: '100%', height: 'auto' }}
-          />
-        </div>
-      )}
+    <div className="border-2 border-dashed border-gray-400 p-6 rounded-lg text-center">
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        id="file-upload"
+      />
+      <label
+        htmlFor="file-upload"
+        className="cursor-pointer text-blue-600 hover:underline"
+      >
+        Click to upload an image
+      </label>
     </div>
   );
 }
