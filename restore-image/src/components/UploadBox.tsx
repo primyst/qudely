@@ -3,7 +3,7 @@
 import { useRef } from "react";
 
 interface UploadBoxProps {
-  onUpload: (uploadedUrl: string) => void;
+  onUpload: (input_url: string) => void;
 }
 
 export default function UploadBox({ onUpload }: UploadBoxProps) {
@@ -25,10 +25,10 @@ export default function UploadBox({ onUpload }: UploadBoxProps) {
       if (!res.ok) throw new Error("Upload failed");
 
       const data = await res.json();
-      if (data.url) {
-        onUpload(data.url);
+      if (data.input_url) {
+        onUpload(data.input_url); // ✅ keep input_url
       } else {
-        throw new Error("No URL returned from upload API");
+        throw new Error("No input_url returned from upload API");
       }
     } catch (err) {
       console.error("Upload error:", err);
