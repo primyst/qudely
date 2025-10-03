@@ -10,29 +10,32 @@ export default function Home() {
   const [restoredUrl, setRestoredUrl] = useState<string | null>(null);
   const [colorizedUrl, setColorizedUrl] = useState<string | null>(null);
 
-  const handleUpload = async (uploadedUrl: string) => {
-  setUploadedUrl(uploadedUrl);
-  setStatus('Processing (restore + colorize)...');
+  const handleUpload = async (fileUrl: string) => {
+    setStatus('Processing (restore + colorize)...');
 
-  try {
-    const pipelineRes = await fetch('/api/restore-and-colorize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ input_url: uploadedUrl }),
-    });
+    try {
+      const pipelineRes = await fetch('/api/restore-and-colorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input_url: fileUrl }),
+      });
 
-    if (!pipelineRes.ok) {
-      throw new Error(`Pipeline failed: ${pipelineRes.status}`);
+      if (!pipelineRes.ok) {
+        throw new Error(`Pipeline failed: ${pipelineRes.status}`);
+      }
+
+      const data = await pipelineRes.json();
+
+      // ✅ store the canonical input_url from API response
+      setUploadedUrl(data.input_url);
+
+      setRestoredUrl(data.restored_url);
+      setColorizedUrl(data.colorized_url);
+      setStatus('Done');
+    } catch (err: unknown) {
+      setStatus(err instanceof Error ? `Error: ${err.message}` : 'Unknown error');
     }
-
-    const data = await pipelineRes.json();
-    setRestoredUrl(data.restored_url);
-    setColorizedUrl(data.colorized_url);
-    setStatus('Done');
-  } catch (err: unknown) {
-    setStatus(err instanceof Error ? `Error: ${err.message}` : 'Unknown error');
-  }
-};
+  };
 
   return (
     <div className="max-w-3xl mx-auto p-4">
