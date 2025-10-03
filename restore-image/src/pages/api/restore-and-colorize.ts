@@ -1,37 +1,29 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { insertRestoration, updateRestoration } from '@/lib/db';
 import { restoreImage, colorizeImage } from '@/lib/replicate';
 import { saveToStorage } from '@/lib/storage';
 import { ratelimit } from '@/lib/rate';
+import { getUserFromRequest } from '@/lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const supabaseServer = createServerSupabaseClient({ req, res });
-  const { data: { user } } = await supabaseServer.auth.getUser();
-  if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  const finalUser = await getUserFromRequest(req, res);
+  if (!finalUser) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { success } = await ratelimit.limit(`pipeline:${user.id}`);
+  const { success } = await ratelimit.limit(`pipeline:${finalUser.id}`);
   if (!success) return res.status(429).json({ error: 'Too many requests' });
 
   try {
     const { input_url } = req.body;
     if (!input_url || typeof input_url !== 'string') return res.status(400).json({ error: 'input_url required' });
 
-    const record = await insertRestoration({
-      user_id: user.id,
-      input_url,
-      status: 'restoring'
-    });
+    const record = await insertRestoration({ user_id: finalUser.id, input_url, status: 'restoring' });
+    if (!record.id) return res.status(500).json({ error: 'Failed to create record' });
 
-    // ✅ Guard against missing record.id
-    if (!record.id) {
-      return res.status(500).json({ error: 'Failed to create restoration record' });
-    }
-
+    // 1. Restore
     const restoredPublic = await restoreImage(input_url);
-    const restoredStored = await saveToStorage(restoredPublic, user.id, 'restore');
+    const restoredStored = await saveToStorage(restoredPublic, finalUser.id, 'restore');
 
     await updateRestoration(record.id, {
       restored_url: restoredStored,
@@ -39,31 +31,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       meta: { restored_from: restoredPublic }
     });
 
-    const colorInput = restoredStored;
-    const colorPublic = await colorizeImage(colorInput);
-    const colorStored = await saveToStorage(colorPublic, user.id, 'colorize');
+    // 2. Colorize
+    const colorPublic = await colorizeImage(restoredStored);
+    const colorStored = await saveToStorage(colorPublic, finalUser.id, 'colorize');
 
     const final = await updateRestoration(record.id, {
       colorized_url: colorStored,
       status: 'done',
-      meta: { ...record.meta, colorized_from: colorPublic }
+      meta: { colorized_from: colorPublic }
     });
 
     return res.status(200).json({
       ok: true,
       id: final.id,
-      input_url, // keep original input_url in response
+      input_url,
       restored_url: final.restored_url,
       colorized_url: final.colorized_url
     });
   } catch (err: unknown) {
     console.error('pipeline error', err);
-    try {
-      if (typeof err === 'object' && err !== null && 'recordId' in err) {
-        await updateRestoration((err as { recordId: string }).recordId, { status: 'failed' });
-      }
-    } catch {} // ignore
-    const message = err instanceof Error ? err.message : 'Server error';
-    return res.status(500).json({ error: message });
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Server error' });
   }
 }
