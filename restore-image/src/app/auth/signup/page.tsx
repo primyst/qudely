@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient"; // ✅ use the exported instance
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Mail, Lock } from "lucide-react";
 
+// 👇 Table row type
 interface Profile {
   id: string;
   email: string;
@@ -15,7 +16,7 @@ interface Profile {
 }
 
 export default function SignupPage() {
-  const router = useRouter(); // ✅ use the router
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,41 +29,47 @@ export default function SignupPage() {
     setMessage("");
     setLoading(true);
 
-    // ✅ Use the imported supabase directly
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // 🔹 Sign up user
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
       return;
     }
 
     const user = data.user;
 
-    if (user && user.email) {
-      const profileData: Profile = {
-        id: user.id,
-        email: user.email,
-        trial_count: 0,
-        is_premium: false,
-        created_at: new Date().toISOString(),
-      };
+    if (!user) {
+      setError("Signup failed, no user returned.");
+      setLoading(false);
+      return;
+    }
 
-      // ✅ Insert the full profile object
-      const { error: insertError } = await supabase
-        .from<Profile>("profiles")
-        .insert([profileData]);
+    // 🔹 Prepare full profile object
+    const profileData: Profile = {
+      id: user.id,
+      email: user.email!,
+      trial_count: 0,
+      is_premium: false,
+      created_at: new Date().toISOString(),
+    };
 
-      if (insertError) {
-        console.error("Profile insert failed:", insertError);
-        setError("An error occurred while setting up your profile.");
-      } else {
-        setMessage(
-          "Account created successfully! Please check your email to confirm your Qudely account."
-        );
-      }
+    // 🔹 Insert profile using proper types
+    const { error: insertError } = await supabase
+      .from<Profile, Profile>("profiles") // ✅ Table + Insert type
+      .insert([profileData]);
+
+    if (insertError) {
+      console.error("Profile insert failed:", insertError);
+      setError("An error occurred while setting up your profile.");
     } else {
-      setError("Failed to get user details after signup.");
+      setMessage(
+        "Account created successfully! Please check your email to confirm your Qudely account."
+      );
     }
 
     setLoading(false);
@@ -121,15 +128,11 @@ export default function SignupPage() {
           </div>
 
           {error && (
-            <p className="text-red-500 text-sm bg-red-50 p-2 rounded">
-              {error}
-            </p>
+            <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>
           )}
 
           {message && (
-            <p className="text-blue-600 text-sm bg-blue-50 p-2 rounded">
-              {message}
-            </p>
+            <p className="text-blue-600 text-sm bg-blue-50 p-2 rounded">{message}</p>
           )}
 
           <button
