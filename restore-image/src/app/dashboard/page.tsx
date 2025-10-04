@@ -116,7 +116,7 @@ export default function DashboardPage() {
   const handleUpgrade = async () => {
     if (!profile) return;
     const { data: updatedProfile } = await supabase
-      .from<Profile>("profiles")
+      .from<Profile, Profile>("profiles")
       .update({ is_premium: true })
       .eq("id", profile.id)
       .select()
