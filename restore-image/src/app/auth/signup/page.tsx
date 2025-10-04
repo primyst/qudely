@@ -33,45 +33,65 @@ export default function SignupPage() {
     }
 
     const user = data.user;
-    if (user) {
-      const { error: existingUserError, data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", user.email)
-        .single();
-
-      if (existing) {
-        setError("This email is already registered.");
-        setLoading(false);
-        return;
-      }
-
-      const { error: insertError } = await supabase.from("profiles").insert([
-        {
-          id: user.id,
-          email: user.email,
-          credits: 2, // free trials
-          is_premium: false,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (insertError) {
-        setError(insertError.message);
-        setLoading(false);
-        return;
-      }
-
-      setMessage(
-        "Account created successfully! Please check your email to confirm your account."
-      );
+    if (!user) {
+      setError("Unable to retrieve user information.");
       setLoading(false);
+      return;
     }
+
+    // ✅ Ensure email exists before querying
+    if (!user.email) {
+      setError("Signup failed — email not returned by Supabase.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Check if user already exists
+    const { data: existing, error: existingUserError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", user.email)
+      .maybeSingle();
+
+    if (existingUserError) {
+      setError(existingUserError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (existing) {
+      setError("This email is already registered.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ Insert new profile with trial credits
+    const { error: insertError } = await supabase.from("profiles").insert([
+      {
+        id: user.id,
+        email: user.email,
+        credits: 2, // free trials
+        is_premium: false,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (insertError) {
+      setError(insertError.message);
+      setLoading(false);
+      return;
+    }
+
+    setMessage(
+      "Account created successfully! Please check your email to confirm your account."
+    );
+    setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-100 p-4">
       <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-8">
+        {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-500 text-transparent bg-clip-text">
             Qudely
@@ -81,6 +101,7 @@ export default function SignupPage() {
           </p>
         </div>
 
+        {/* Title */}
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold text-gray-800 flex justify-center items-center gap-2">
             <UserPlus className="w-6 h-6 text-blue-600" /> Create Your Account
@@ -90,6 +111,7 @@ export default function SignupPage() {
           </p>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSignup} className="space-y-4">
           <div>
             <label className="text-sm font-medium text-gray-700">Email</label>
@@ -107,7 +129,9 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Password</label>
+            <label className="text-sm font-medium text-gray-700">
+              Password
+            </label>
             <div className="flex items-center border border-gray-300 rounded-lg px-3 mt-1 focus-within:ring-2 focus-within:ring-blue-500">
               <Lock className="w-4 h-4 text-gray-400 mr-2" />
               <input
