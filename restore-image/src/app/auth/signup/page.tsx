@@ -51,8 +51,9 @@ export default function SignupPage() {
 
       // ✅ Explicitly type Supabase table to avoid `never`
       const { error: insertError } = await supabase
-        .from<Profile>("profiles")
-        .insert([profileData] as Profile[]); // 👈 Cast ensures TypeScript recognizes structure
+  .from<Profile, Profile>("profiles")
+  .insert([{ id: user.id, email: user.email }]);
+ //  Cast ensures TypeScript recognizes structure
 
       if (insertError) {
         console.error("Profile insert failed:", insertError);
