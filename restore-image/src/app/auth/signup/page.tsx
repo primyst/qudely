@@ -47,9 +47,9 @@ export default function SignupPage() {
         created_at: new Date().toISOString(),
       };
 
-      // ✅ Explicitly type the insert call
+      // Explicitly type the insert call
       const { error: insertError } = await supabase
-        .from<Profile>("profiles")
+        .from<"profiles", Profile>("profiles")
         .insert(profileData);
 
       if (insertError) {
