@@ -34,21 +34,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-100 p-4">
-      <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-100 p-4">
+      <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-8">
+        {/* Logo / Brand header */}
         <div className="text-center space-y-2">
-          <h2 className="text-3xl font-bold text-gray-800 flex justify-center items-center gap-2">
+          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-500 text-transparent bg-clip-text">
+            Qudely
+          </h1>
+          <p className="text-gray-500 text-sm tracking-wide">
+            AI Image Restoration & Colorization Suite 🎨
+          </p>
+        </div>
+
+        {/* Form header */}
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-gray-800 flex justify-center items-center gap-2">
             <LogIn className="w-6 h-6 text-blue-600" /> Welcome Back
           </h2>
           <p className="text-gray-500 text-sm">
-            Sign in to continue your AI-powered experience ✨
+            Sign in to continue your Qudely experience ✨
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="text-sm font-medium text-gray-700">Email</label>
-            <div className="flex items-center border rounded-lg px-3 mt-1">
+            <div className="flex items-center border border-gray-300 rounded-lg px-3 mt-1 focus-within:ring-2 focus-within:ring-blue-500">
               <Mail className="w-4 h-4 text-gray-400 mr-2" />
               <input
                 type="email"
@@ -65,7 +76,7 @@ export default function LoginPage() {
             <label className="text-sm font-medium text-gray-700">
               Password
             </label>
-            <div className="flex items-center border rounded-lg px-3 mt-1">
+            <div className="flex items-center border border-gray-300 rounded-lg px-3 mt-1 focus-within:ring-2 focus-within:ring-blue-500">
               <Lock className="w-4 h-4 text-gray-400 mr-2" />
               <input
                 type="password"
@@ -87,7 +98,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 transition text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-70"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 transition text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-70"
           >
             {loading ? "Logging in..." : "Login"}
           </button>
@@ -101,7 +112,7 @@ export default function LoginPage() {
             Forgot password?
           </Link>
           <p className="text-gray-500">
-            New here?{" "}
+            New to Qudely?{" "}
             <Link
               href="/auth/signup"
               className="text-blue-600 font-medium hover:underline"
@@ -110,6 +121,11 @@ export default function LoginPage() {
             </Link>
           </p>
         </div>
+
+        {/* Footer note */}
+        <p className="text-center text-xs text-gray-400 pt-2">
+          © {new Date().getFullYear()} Qudely — Empowering AI creativity
+        </p>
       </div>
     </div>
   );
