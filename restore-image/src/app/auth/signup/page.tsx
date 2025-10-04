@@ -41,14 +41,14 @@ export default function SignupPage() {
 
     // 🔹 Insert profile using typed client
     const { error: insertError } = await supabase
-      .from("profiles")
-      .insert({
-        id: user.id,
-        email: user.email!,
-        trial_count: 0,
-        is_premium: false,
-        created_at: new Date().toISOString(),
-      });
+  .from("profiles")
+  .insert({
+    id: user.id,
+    email: user.email!,
+    trial_count: 0,
+    is_premium: false,
+    created_at: new Date().toISOString(),
+  });
 
     if (insertError) {
       console.error("Profile insert failed:", insertError);
