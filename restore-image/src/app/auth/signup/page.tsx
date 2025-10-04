@@ -30,33 +30,45 @@ export default function SignupPage() {
     }
 
     if (data.user) {
-      // Create a profile for the new user
       await supabase.from("profiles").insert({
         id: data.user.id,
         email: data.user.email,
       });
 
-      setMessage("Account created successfully! Please check your email to confirm.");
+      setMessage(
+        "Account created successfully! Please check your email to confirm your Qudely account."
+      );
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-100 p-4">
-      <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-100 p-4">
+      <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-8">
+        {/* Logo / Brand Header */}
         <div className="text-center space-y-2">
-          <h2 className="text-3xl font-bold text-gray-800 flex justify-center items-center gap-2">
-            <UserPlus className="w-6 h-6 text-emerald-600" /> Create Account
+          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-500 text-transparent bg-clip-text">
+            Qudely
+          </h1>
+          <p className="text-gray-500 text-sm tracking-wide">
+            AI Image Restoration & Colorization Suite 🎨
+          </p>
+        </div>
+
+        {/* Form Title */}
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-gray-800 flex justify-center items-center gap-2">
+            <UserPlus className="w-6 h-6 text-blue-600" /> Create Your Account
           </h2>
           <p className="text-gray-500 text-sm">
-            Join our AI platform and get started in seconds 🚀
+            Join Qudely and start transforming images with AI magic ✨
           </p>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
           <div>
             <label className="text-sm font-medium text-gray-700">Email</label>
-            <div className="flex items-center border rounded-lg px-3 mt-1">
+            <div className="flex items-center border border-gray-300 rounded-lg px-3 mt-1 focus-within:ring-2 focus-within:ring-blue-500">
               <Mail className="w-4 h-4 text-gray-400 mr-2" />
               <input
                 type="email"
@@ -71,7 +83,7 @@ export default function SignupPage() {
 
           <div>
             <label className="text-sm font-medium text-gray-700">Password</label>
-            <div className="flex items-center border rounded-lg px-3 mt-1">
+            <div className="flex items-center border border-gray-300 rounded-lg px-3 mt-1 focus-within:ring-2 focus-within:ring-blue-500">
               <Lock className="w-4 h-4 text-gray-400 mr-2" />
               <input
                 type="password"
@@ -91,7 +103,7 @@ export default function SignupPage() {
           )}
 
           {message && (
-            <p className="text-emerald-600 text-sm bg-emerald-50 p-2 rounded">
+            <p className="text-blue-600 text-sm bg-blue-50 p-2 rounded">
               {message}
             </p>
           )}
@@ -99,7 +111,7 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 transition text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-70"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 transition text-white font-semibold py-2.5 rounded-lg shadow disabled:opacity-70"
           >
             {loading ? "Creating account..." : "Sign Up"}
           </button>
@@ -110,12 +122,17 @@ export default function SignupPage() {
             Already have an account?{" "}
             <Link
               href="/auth/login"
-              className="text-emerald-600 font-medium hover:underline"
+              className="text-blue-600 font-medium hover:underline"
             >
               Log in
             </Link>
           </p>
         </div>
+
+        {/* Footer note */}
+        <p className="text-center text-xs text-gray-400 pt-2">
+          © {new Date().getFullYear()} Qudely — Empowering AI creativity
+        </p>
       </div>
     </div>
   );
