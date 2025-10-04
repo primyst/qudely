@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Mail, Lock } from "lucide-react";
 
+interface Profile {
+  id: string;
+  email: string | null;
+}
+
 export default function SignupPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -15,7 +20,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setMessage("");
@@ -30,10 +35,21 @@ export default function SignupPage() {
     }
 
     if (data.user) {
-      await supabase.from("profiles").insert({
+      // ✅ Explicitly type the insert row
+      const newProfile: Profile = {
         id: data.user.id,
-        email: data.user.email,
-      });
+        email: data.user.email ?? null,
+      };
+
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert(newProfile);
+
+      if (insertError) {
+        setError(insertError.message);
+        setLoading(false);
+        return;
+      }
 
       setMessage(
         "Account created successfully! Please check your email to confirm your Qudely account."
@@ -45,7 +61,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-100 p-4">
       <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-8">
-        {/* Logo / Brand Header */}
+        {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-500 text-transparent bg-clip-text">
             Qudely
@@ -55,7 +71,7 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {/* Form Title */}
+        {/* Title */}
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold text-gray-800 flex justify-center items-center gap-2">
             <UserPlus className="w-6 h-6 text-blue-600" /> Create Your Account
@@ -96,17 +112,8 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {error && (
-            <p className="text-red-500 text-sm bg-red-50 p-2 rounded">
-              {error}
-            </p>
-          )}
-
-          {message && (
-            <p className="text-blue-600 text-sm bg-blue-50 p-2 rounded">
-              {message}
-            </p>
-          )}
+          {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
+          {message && <p className="text-blue-600 text-sm bg-blue-50 p-2 rounded">{message}</p>}
 
           <button
             type="submit"
@@ -120,16 +127,12 @@ export default function SignupPage() {
         <div className="text-sm text-center space-y-2">
           <p className="text-gray-500">
             Already have an account?{" "}
-            <Link
-              href="/auth/login"
-              className="text-blue-600 font-medium hover:underline"
-            >
+            <Link href="/auth/login" className="text-blue-600 font-medium hover:underline">
               Log in
             </Link>
           </p>
         </div>
 
-        {/* Footer note */}
         <p className="text-center text-xs text-gray-400 pt-2">
           © {new Date().getFullYear()} Qudely — Empowering AI creativity
         </p>
