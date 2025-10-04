@@ -41,9 +41,10 @@ export default function SignupPage() {
         email: data.user.email ?? null,
       };
 
+      // ✅ FIX: wrap inside array
       const { error: insertError } = await supabase
         .from("profiles")
-        .insert(newProfile);
+        .insert([newProfile]);
 
       if (insertError) {
         setError(insertError.message);
@@ -112,8 +113,16 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
-          {message && <p className="text-blue-600 text-sm bg-blue-50 p-2 rounded">{message}</p>}
+          {error && (
+            <p className="text-red-500 text-sm bg-red-50 p-2 rounded">
+              {error}
+            </p>
+          )}
+          {message && (
+            <p className="text-blue-600 text-sm bg-blue-50 p-2 rounded">
+              {message}
+            </p>
+          )}
 
           <button
             type="submit"
@@ -127,7 +136,10 @@ export default function SignupPage() {
         <div className="text-sm text-center space-y-2">
           <p className="text-gray-500">
             Already have an account?{" "}
-            <Link href="/auth/login" className="text-blue-600 font-medium hover:underline">
+            <Link
+              href="/auth/login"
+              className="text-blue-600 font-medium hover:underline"
+            >
               Log in
             </Link>
           </p>
