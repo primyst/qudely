@@ -5,25 +5,41 @@ export type Database = {
         Row: {
           id: string;
           email: string;
-          full_name: string;
-          credits: number;
+          trial_count: number;
           is_premium: boolean;
           created_at: string;
         };
         Insert: {
           id?: string;
           email: string;
-          full_name: string;
-          credits?: number;
+          trial_count?: number;
           is_premium?: boolean;
           created_at?: string;
         };
         Update: {
-          email?: string;
-          full_name?: string;
-          credits?: number;
+          trial_count?: number;
           is_premium?: boolean;
+        };
+      };
+      history: {
+        Row: {
+          id: string;
+          user_id: string;
+          original_url: string;
+          restored_url: string | null;
+          colorized_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          original_url: string;
+          restored_url?: string | null;
+          colorized_url?: string | null;
           created_at?: string;
+        };
+        Update: {
+          restored_url?: string | null;
+          colorized_url?: string | null;
         };
       };
     };
