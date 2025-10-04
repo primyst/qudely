@@ -47,10 +47,10 @@ export default function SignupPage() {
         created_at: new Date().toISOString(),
       };
 
-      // Explicitly type the insert call
+      // ✅ Correct Supabase insert syntax
       const { error: insertError } = await supabase
-        .from<"profiles", Profile>("profiles")
-        .insert(profileData);
+        .from<Profile>("profiles")
+        .insert([profileData]);
 
       if (insertError) {
         console.error("Profile insert failed:", insertError);
