@@ -42,7 +42,7 @@ export default function DashboardPage() {
       setProfile(profileData);
 
       const { data: historyData } = await supabase
-        .from<HistoryItem>("history")
+        .from<HistoryItem, HistoryItem>("history")
         .select("*")
         .eq("user_id", data.user.id);
       setHistory(historyData || []);
