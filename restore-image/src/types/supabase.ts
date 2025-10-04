@@ -5,43 +5,22 @@ export type Database = {
         Row: {
           id: string;
           email: string;
-          trial_count: number | null;
-          is_premium: boolean | null;
-          created_at: string | null;
+          trial_count: number;
+          is_premium: boolean;
+          created_at: string;
         };
         Insert: {
           id: string;
           email: string;
-          trial_count?: number | null;
-          is_premium?: boolean | null;
-          created_at?: string | null;
+          trial_count?: number;
+          is_premium?: boolean;
+          created_at?: string;
         };
         Update: {
-          trial_count?: number | null;
-          is_premium?: boolean | null;
-        };
-      };
-
-      history: {
-        Row: {
-          id: string;
-          user_id: string;
-          original_url: string;
-          restored_url: string | null;
-          colorized_url: string | null;
-          created_at: string | null;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          original_url: string;
-          restored_url?: string | null;
-          colorized_url?: string | null;
-          created_at?: string | null;
-        };
-        Update: {
-          restored_url?: string | null;
-          colorized_url?: string | null;
+          email?: string;
+          trial_count?: number;
+          is_premium?: boolean;
+          created_at?: string;
         };
       };
     };
