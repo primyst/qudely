@@ -1,30 +1,58 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+
+interface Profile {
+  id: string;
+  email: string;
+  trial_count: number;
+  is_premium: boolean;
+}
+
+interface HistoryItem {
+  id: string;
+  user_id: string;
+  original: string;
+  restored: string;
+  colorized: string;
+  created_at: string;
+}
 
 export default function DashboardPage() {
   const supabase = createClient();
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
+  // Fetch profile and history
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return router.push("/auth/login");
+    const fetchProfileAndHistory = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) return router.push("/auth/login");
 
-      const { data: profiles } = await supabase
-        .from("profiles")
+      const { data: profileData, error: profileError } = await supabase
+        .from<Profile>("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", data.user.id)
         .single();
-      setProfile(profiles);
+      if (profileError || !profileData) return;
+
+      setProfile(profileData);
+
+      const { data: historyData } = await supabase
+        .from<HistoryItem>("history")
+        .select("*")
+        .eq("user_id", data.user.id);
+      setHistory(historyData || []);
     };
-    fetchProfile();
+
+    fetchProfileAndHistory();
   }, []);
 
-  const handleProcessImage = async () => {
+  // Handle AI image processing
+  const handleProcessImage = () => {
     if (!profile) return;
 
     if (!profile.is_premium && profile.trial_count >= 2) {
@@ -32,26 +60,68 @@ export default function DashboardPage() {
       return;
     }
 
-    // Call your AI pipeline here
-    // const result = await fetch('/api/pipeline', { ... });
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (!target.files || target.files.length === 0) return;
+      const file = target.files[0];
 
-    // Increment trial count if not premium
-    if (!profile.is_premium) {
-      const { data } = await supabase
-        .from("profiles")
-        .update({ trial_count: profile.trial_count + 1 })
-        .eq("id", profile.id)
-        .select()
-        .single();
-      setProfile(data);
-    }
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("images")
+        .upload(`uploads/${file.name}`, file, { upsert: true });
+      if (uploadError || !uploadData) return alert("Upload failed: " + uploadError?.message);
+      const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
 
-    alert("Image processed!"); // placeholder
+      // Call AI pipeline
+      const res = await fetch("/api/pipeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: profile.id, imageUrl }),
+      });
+      const result = await res.json();
+      if (result.error) return alert(result.error);
+
+      // Update trial count if not premium
+      if (!profile.is_premium) {
+        const { data: updatedProfile } = await supabase
+          .from<Profile>("profiles")
+          .update({ trial_count: profile.trial_count + 1 })
+          .eq("id", profile.id)
+          .select()
+          .single();
+        if (updatedProfile) setProfile(updatedProfile);
+      }
+
+      // Update history
+      setHistory((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          user_id: profile.id,
+          original: imageUrl,
+          restored: result.restored,
+          colorized: result.colorized,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      alert("Image processed! Check your history below.");
+    };
+    fileInput.click();
   };
 
   const handleUpgrade = async () => {
-    await supabase.from("profiles").update({ is_premium: true }).eq("id", profile.id);
-    setProfile({ ...profile, is_premium: true });
+    if (!profile) return;
+    const { data: updatedProfile } = await supabase
+      .from<Profile>("profiles")
+      .update({ is_premium: true })
+      .eq("id", profile.id)
+      .select()
+      .single();
+    if (updatedProfile) setProfile(updatedProfile);
     alert("Upgraded to premium! Unlimited access unlocked.");
   };
 
@@ -88,6 +158,23 @@ export default function DashboardPage() {
       >
         Logout
       </button>
+
+      <div className="mt-6">
+        <h2 className="text-lg font-bold mb-2">History</h2>
+        {history.length === 0 ? (
+          <p>No processed images yet.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-4">
+            {history.map((h) => (
+              <div key={h.id} className="space-y-1">
+                <img src={h.original} className="w-full h-32 object-cover rounded" />
+                <img src={h.restored} className="w-full h-32 object-cover rounded" />
+                <img src={h.colorized} className="w-full h-32 object-cover rounded" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
