@@ -41,18 +41,18 @@ export default function SignupPage() {
     const user = data.user;
 
     if (user && user.email) {
-      const profileData = {
+      const profileData: Profile = {
         id: user.id,
         email: user.email,
         trial_count: 0,
         is_premium: false,
         created_at: new Date().toISOString(),
-      } satisfies Profile; // ✅ ensures structure matches Profile
+      };
 
-      // ✅ Correct, type-safe Supabase insert
+      // ✅ Explicitly type Supabase table to avoid `never`
       const { error: insertError } = await supabase
-        .from("profiles")
-        .insert([profileData]);
+        .from<Profile>("profiles")
+        .insert([profileData] as Profile[]); // 👈 Cast ensures TypeScript recognizes structure
 
       if (insertError) {
         console.error("Profile insert failed:", insertError);
@@ -72,7 +72,6 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-100 p-4">
       <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-8">
-        {/* Logo / Brand Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-500 text-transparent bg-clip-text">
             Qudely
@@ -82,7 +81,6 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {/* Form Title */}
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold text-gray-800 flex justify-center items-center gap-2">
             <UserPlus className="w-6 h-6 text-blue-600" /> Create Your Account
