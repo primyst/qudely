@@ -60,7 +60,7 @@ export default function SignupPage() {
 
     // 🔹 Insert profile using proper types
     const { error: insertError } = await supabase
-      .from<Profile, Profile>("profiles") // ✅ Table + Insert type
+      .from("profiles") //  Table + Insert type
       .insert([profileData]);
 
     if (insertError) {
