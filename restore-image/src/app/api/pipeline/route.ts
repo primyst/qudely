@@ -16,6 +16,16 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN!,
 });
 
+// Helper to safely extract string URL from Replicate output
+function extractUrl(result: unknown): string {
+  if (typeof result === "string") return result;
+  if (Array.isArray(result)) return result[0] ?? "";
+  if (typeof result === "object" && result !== null && "url" in result) {
+    return (result as { url?: string }).url ?? "";
+  }
+  return "";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body: PipelineRequestBody = await req.json();
@@ -26,16 +36,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 1: Restore image
-    const restored: string = await replicate.run(
+    const restoredResult = await replicate.run(
       "flux-kontext-apps/restore-image:latest",
       { input: { image: imageUrl } }
     );
+    const restored = extractUrl(restoredResult);
+    if (!restored) throw new Error("Failed to get restored image URL");
 
     // Step 2: Colorize image
-    const colorized: string = await replicate.run(
+    const colorizedResult = await replicate.run(
       "tomekkora/deoldify:latest",
       { input: { image: restored } }
     );
+    const colorized = extractUrl(colorizedResult);
+    if (!colorized) throw new Error("Failed to get colorized image URL");
 
     // Store in Supabase history
     const supabase = createClient();
