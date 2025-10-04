@@ -33,7 +33,7 @@ export default function DashboardPage() {
       if (error || !data.user) return router.push("/auth/login");
 
       const { data: profileData, error: profileError } = await supabase
-        .from<Profile>("profiles")
+        .from<Profile, Profile>("profiles")
         .select("*")
         .eq("id", data.user.id)
         .single();
