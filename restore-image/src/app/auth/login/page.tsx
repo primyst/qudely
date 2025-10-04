@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient"; // ✅ use the exported instance
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogIn, Mail, Lock } from "lucide-react";
 
 export default function LoginPage() {
-  const supabase = createClient();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,15 +18,15 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     setLoading(false);
 
-    if (error) {
-      setError(error.message);
+    if (loginError) {
+      setError(loginError.message);
     } else {
       router.push("/dashboard");
     }
@@ -122,7 +121,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Footer note */}
         <p className="text-center text-xs text-gray-400 pt-2">
           © {new Date().getFullYear()} Qudely — Empowering AI creativity
         </p>
