@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Mail, Lock } from "lucide-react";
 
+// 👇 Define the shape of your "profiles" table
+interface Profile {
+  id: string;
+  email: string;
+  trial_count: number;
+  is_premium: boolean;
+  created_at: string;
+}
+
 export default function SignupPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -30,15 +39,18 @@ export default function SignupPage() {
     }
 
     if (data.user) {
-      const { error: insertError } = await supabase.from("profiles").insert([
-        {
-          id: data.user.id,
-          email: data.user.email!,
-          trial_count: 0,
-          is_premium: false,
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      const profileData: Profile = {
+        id: data.user.id,
+        email: data.user.email!,
+        trial_count: 0,
+        is_premium: false,
+        created_at: new Date().toISOString(),
+      };
+
+      // ✅ Explicitly type the insert call
+      const { error: insertError } = await supabase
+        .from<Profile>("profiles")
+        .insert(profileData);
 
       if (insertError) {
         console.error("Profile insert failed:", insertError);
