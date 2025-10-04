@@ -6,11 +6,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Mail, Lock } from "lucide-react";
 
-interface Profile {
-  id: string;
-  email: string | null;
-}
-
 export default function SignupPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -26,25 +21,40 @@ export default function SignupPage() {
     setMessage("");
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
       return;
     }
 
-    if (data.user) {
-      // ✅ Explicitly type the insert row
-      const newProfile: Profile = {
-        id: data.user.id,
-        email: data.user.email ?? null,
-      };
-
-      // ✅ FIX: wrap inside array
-      const { error: insertError } = await supabase
+    const user = data.user;
+    if (user) {
+      const { error: existingUserError, data: existing } = await supabase
         .from("profiles")
-        .insert([newProfile]);
+        .select("id")
+        .eq("email", user.email)
+        .single();
+
+      if (existing) {
+        setError("This email is already registered.");
+        setLoading(false);
+        return;
+      }
+
+      const { error: insertError } = await supabase.from("profiles").insert([
+        {
+          id: user.id,
+          email: user.email,
+          credits: 2, // free trials
+          is_premium: false,
+          created_at: new Date().toISOString(),
+        },
+      ]);
 
       if (insertError) {
         setError(insertError.message);
@@ -53,7 +63,7 @@ export default function SignupPage() {
       }
 
       setMessage(
-        "Account created successfully! Please check your email to confirm your Qudely account."
+        "Account created successfully! Please check your email to confirm your account."
       );
       setLoading(false);
     }
@@ -62,7 +72,6 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-blue-100 p-4">
       <div className="bg-white/90 backdrop-blur-xl shadow-xl rounded-2xl p-8 w-full max-w-md space-y-8">
-        {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-500 text-transparent bg-clip-text">
             Qudely
@@ -72,7 +81,6 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {/* Title */}
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold text-gray-800 flex justify-center items-center gap-2">
             <UserPlus className="w-6 h-6 text-blue-600" /> Create Your Account
