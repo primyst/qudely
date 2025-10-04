@@ -11,18 +11,20 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push("/dashboard");
-    }
-  };
+const handleSignup = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    setError(error.message);
+    return;
+  }
+  // Create profile
+  await supabase.from("profiles").insert({
+    id: data.user!.id,
+    email: data.user!.email,
+  });
+  router.push("/dashboard");
+};
 
   return (
     <div className="flex h-screen items-center justify-center bg-gray-100">
