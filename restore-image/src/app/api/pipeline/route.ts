@@ -5,12 +5,26 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 const REPLICATE_API = "https://api.replicate.com/v1/predictions";
 const MODEL = "flux-kontext-apps/restore-image";
 
-async function createReplicatePrediction(imageUrl: string) {
+interface PredictionInput {
+  image: string;
+}
+
+interface ReplicatePrediction {
+  id: string;
+  status: "starting" | "processing" | "succeeded" | "failed" | "canceled";
+  output?: string | string[];
+  error?: string | null;
+}
+
+interface ProcessRequestBody {
+  imageUrl: string;
+  userId: string;
+}
+
+async function createReplicatePrediction(imageUrl: string): Promise<ReplicatePrediction> {
   const body = {
-    // Using the unified endpoint: provide model and input
     model: MODEL,
-    input: { image: imageUrl },
-    // Optionally: you can add "webhook" to get notified instead of polling
+    input: { image: imageUrl } satisfies PredictionInput,
   };
 
   const res = await fetch(REPLICATE_API, {
@@ -27,88 +41,72 @@ async function createReplicatePrediction(imageUrl: string) {
     throw new Error(`Replicate create error: ${res.status} ${text}`);
   }
 
-  return await res.json(); // contains id and status
+  return (await res.json()) as ReplicatePrediction;
 }
 
-async function getPrediction(predictionId: string) {
+async function getPrediction(predictionId: string): Promise<ReplicatePrediction> {
   const res = await fetch(`${REPLICATE_API}/${predictionId}`, {
     headers: {
       Authorization: `Token ${process.env.REPLICATE_API_TOKEN}`,
     },
   });
-  if (!res.ok) {
-    throw new Error(`Replicate get error: ${res.status}`);
-  }
-  return await res.json();
+
+  if (!res.ok) throw new Error(`Replicate get error: ${res.status}`);
+
+  return (await res.json()) as ReplicatePrediction;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageUrl, userId } = await req.json();
+    const { imageUrl, userId } = (await req.json()) as ProcessRequestBody;
 
     if (!imageUrl || !userId) {
       return NextResponse.json({ error: "imageUrl and userId required" }, { status: 400 });
     }
 
-    // 1) Create prediction
+    // 1️⃣ Create prediction
     const createResp = await createReplicatePrediction(imageUrl);
 
-    const predictionId: string = createResp.id;
-    // 2) Poll until succeeded
+    const predictionId = createResp.id;
     const maxAttempts = 30;
     let attempt = 0;
-    let prediction: any = createResp;
+    let prediction: ReplicatePrediction = createResp;
 
+    // 2️⃣ Poll until succeeded
     while (attempt < maxAttempts) {
       prediction = await getPrediction(predictionId);
-      if (prediction.status === "succeeded") break;
-      if (prediction.status === "failed") {
-        throw new Error("Replicate prediction failed: " + JSON.stringify(prediction));
-      }
-      // backoff
+      if (prediction.status === "succeeded" || prediction.status === "failed") break;
       await new Promise((r) => setTimeout(r, 1500 + attempt * 200));
       attempt++;
     }
 
-    if (prediction.status !== "succeeded") {
-      return NextResponse.json({ error: "Prediction did not finish in time" }, { status: 504 });
+    if (prediction.status !== "succeeded" || !prediction.output) {
+      throw new Error(prediction.error || "Prediction failed or timed out");
     }
 
-    // prediction.output might be an array or single url depending on model
-    // For flux-kontext-apps/restore-image the output typically contains final image url(s).
-    const output = prediction.output;
-    // normalize:
-    const restoredUrl = Array.isArray(output) ? output[0] : output;
+    const output = Array.isArray(prediction.output)
+      ? prediction.output[0]
+      : prediction.output;
 
-    // 3) Save to Supabase history table
+    // 3️⃣ Save to history table
     const { data: historyRow, error: insertError } = await supabaseAdmin
       .from("history")
       .insert({
         user_id: userId,
         original_url: imageUrl,
-        restored_url: restoredUrl,
-        colorized_url: restoredUrl,
-        meta: {
-          replicate: {
-            id: predictionId,
-            raw: prediction,
-          },
-        },
+        restored_url: output,
+        colorized_url: output,
+        meta: { replicate: { id: predictionId, raw: prediction } },
       })
       .select()
       .single();
 
-    if (insertError) {
-      console.error("Failed to insert history:", insertError);
-      // continue — return result anyway
-    }
+    if (insertError) console.error("Insert history error:", insertError);
 
-    return NextResponse.json({
-      restoredUrl: restoredUrl,
-      history: historyRow ?? null,
-    });
-  } catch (err: any) {
-    console.error("Pipeline error:", err);
-    return NextResponse.json({ error: err.message ?? String(err) }, { status: 500 });
+    return NextResponse.json({ restoredUrl: output, history: historyRow ?? null });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Pipeline error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
