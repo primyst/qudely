@@ -45,3 +45,11 @@ export type Database = {
     };
   };
 };
+
+export interface Profile {
+  id: string;
+  email: string;
+  trial_count: number;
+  is_premium: boolean;
+  created_at: string;
+}
