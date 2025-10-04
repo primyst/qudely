@@ -38,18 +38,20 @@ export default function SignupPage() {
       return;
     }
 
-    if (data.user) {
-      const profileData: Profile = {
-        id: data.user.id,
-        email: data.user.email!,
+    const user = data.user;
+
+    if (user && user.email) {
+      const profileData = {
+        id: user.id,
+        email: user.email,
         trial_count: 0,
         is_premium: false,
         created_at: new Date().toISOString(),
-      };
+      } satisfies Profile; // ✅ ensures structure matches Profile
 
-      // ✅ Correct Supabase insert syntax
+      // ✅ Correct, type-safe Supabase insert
       const { error: insertError } = await supabase
-        .from<Profile>("profiles")
+        .from("profiles")
         .insert([profileData]);
 
       if (insertError) {
@@ -60,9 +62,11 @@ export default function SignupPage() {
           "Account created successfully! Please check your email to confirm your Qudely account."
         );
       }
-
-      setLoading(false);
+    } else {
+      setError("Failed to get user details after signup.");
     }
+
+    setLoading(false);
   };
 
   return (
