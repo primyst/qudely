@@ -87,7 +87,7 @@ export default function DashboardPage() {
       // Update trial count if not premium
       if (!profile.is_premium) {
         const { data: updatedProfile } = await supabase
-          .from<Profile>("profiles")
+          .from<Profile, Profile>("profiles")
           .update({ trial_count: profile.trial_count + 1 })
           .eq("id", profile.id)
           .select()
