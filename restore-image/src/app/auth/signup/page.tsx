@@ -1,19 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient"; // ✅ use the exported instance
+import { supabase } from "@/lib/supabaseClient"; // typed client
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Mail, Lock } from "lucide-react";
-
-// 👇 Table row type
-interface Profile {
-  id: string;
-  email: string;
-  trial_count: number;
-  is_premium: boolean;
-  created_at: string;
-}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -42,26 +33,22 @@ export default function SignupPage() {
     }
 
     const user = data.user;
-
-    if (!user) {
+    if (!user || !user.id) {
       setError("Signup failed, no user returned.");
       setLoading(false);
       return;
     }
 
-    // 🔹 Prepare full profile object
-    const profileData: Profile = {
-      id: user.id,
-      email: user.email!,
-      trial_count: 0,
-      is_premium: false,
-      created_at: new Date().toISOString(),
-    };
-
-    // 🔹 Insert profile using proper types
+    // 🔹 Insert profile using typed client
     const { error: insertError } = await supabase
-      .from("profiles") //  Table + Insert type
-      .insert([profileData]);
+      .from("profiles")
+      .insert({
+        id: user.id,
+        email: user.email!,
+        trial_count: 0,
+        is_premium: false,
+        created_at: new Date().toISOString(),
+      });
 
     if (insertError) {
       console.error("Profile insert failed:", insertError);
