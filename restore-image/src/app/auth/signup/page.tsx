@@ -30,14 +30,25 @@ export default function SignupPage() {
     }
 
     if (data.user) {
-      await supabase.from("profiles").insert({
-        id: data.user.id,
-        email: data.user.email,
-      });
+      const { error: insertError } = await supabase.from("profiles").insert([
+        {
+          id: data.user.id,
+          email: data.user.email!,
+          trial_count: 0,
+          is_premium: false,
+          created_at: new Date().toISOString(),
+        },
+      ]);
 
-      setMessage(
-        "Account created successfully! Please check your email to confirm your Qudely account."
-      );
+      if (insertError) {
+        console.error("Profile insert failed:", insertError);
+        setError("An error occurred while setting up your profile.");
+      } else {
+        setMessage(
+          "Account created successfully! Please check your email to confirm your Qudely account."
+        );
+      }
+
       setLoading(false);
     }
   };
@@ -129,7 +140,6 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {/* Footer note */}
         <p className="text-center text-xs text-gray-400 pt-2">
           © {new Date().getFullYear()} Qudely — Empowering AI creativity
         </p>
