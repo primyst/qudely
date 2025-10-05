@@ -25,12 +25,14 @@ export default function SignupPage() {
     }
 
     // Create profile
-    await supabase.from("profiles").insert({
-      id: data.user!.id,
-      email: data.user!.email,
-    });
+    if (data.user) {
+      await supabase.from("profiles").insert({
+        id: data.user.id,
+        email: data.user.email,
+      });
+    }
 
-    toast.success("Account created! Redirecting...");
+    toast.success("Account created! Redirecting, check your email to confirm your account...");
     router.push("/dashboard");
   };
 
@@ -41,6 +43,7 @@ export default function SignupPage() {
         onSubmit={handleSignup}
         className="bg-white p-8 rounded-2xl shadow-xl w-96 space-y-6"
       >
+        <h1 className="text-4xl font-extrabold text-center text-green-700">Qudely</h1>
         <h2 className="text-2xl font-bold text-gray-800 text-center">Create Account</h2>
         <p className="text-center text-gray-500">Start your free trial today</p>
 
