@@ -40,13 +40,15 @@ export async function POST(req: NextRequest) {
       "https://modelscope-old-photo-restoration.hf.space/--replicas/1pe40/"
     );
 
+    // Predict returns a string (URL) for this Space
     const result = await client.predict(imageUrl, { api_name: "/predict" });
 
-    if (!result || result.length === 0) {
+    // Ensure we have a string URL
+    if (!result || typeof result !== "string") {
       return NextResponse.json({ error: "Failed to restore image" }, { status: 500 });
     }
 
-    const restoredImageUrl = result[0]; // URL returned by Gradio Space
+    const restoredImageUrl = result;
 
     // Save history
     await supabase.from("history").insert({
