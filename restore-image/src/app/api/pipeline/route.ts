@@ -8,18 +8,8 @@ interface PipelineRequestBody {
 }
 
 const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN!,
+  auth: process.env.REPLICATE_API_TOKEN!, // ✅ same env var works fine
 });
-
-// Helper to safely extract image URL
-function extractUrl(result: unknown): string {
-  if (typeof result === "string") return result;
-  if (Array.isArray(result)) return result[0] ?? "";
-  if (typeof result === "object" && result !== null && "url" in result) {
-    return (result as { url?: string }).url ?? "";
-  }
-  return "";
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +24,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = createClient();
 
-    // Fetch user profile
+    // 🔍 Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("trial_count, is_premium")
@@ -45,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check trial limit
+    // ⛔ Trial limit check
     if (!profile.is_premium && profile.trial_count >= 2) {
       return NextResponse.json(
         { error: "Trial limit reached. Please upgrade to premium." },
@@ -53,23 +43,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 🧠 Process image using Flux Restore
-    const restoredResult = await replicate.run(
-      "flux-kontext-apps/restore-image:1d22d3b0e9ed7f1ebec8d5a8f8d8d6c5a7018e8f9cd56b27f3e9a2094f99b1b2",
-      {
-        input: {
-          input_image: imageUrl,
-          safety_tolerance: 2,
-          output_format: "png",
-        },
-      }
-    );
+    // 🧠 Step 1: Restore the image using the latest SDK method (no version needed)
+    const restoredOutput = await replicate.run("flux-kontext-apps/restore-image", {
+      input: {
+        input_image: imageUrl,
+        safety_tolerance: 2,
+        output_format: "png",
+      },
+    });
 
-    const restored = extractUrl(restoredResult);
-    if (!restored)
-      throw new Error("Failed to get restored image URL from Replicate");
+    // 🧩 The SDK now returns a URL or array — normalize it
+    const restored =
+      typeof restoredOutput === "string"
+        ? restoredOutput
+        : Array.isArray(restoredOutput)
+        ? restoredOutput[0]
+        : "";
 
-    // Save to user history
+    if (!restored) throw new Error("Failed to get restored image URL from Replicate");
+
+    // 💾 Save in history
     const { error: insertError } = await supabase.from("history").insert({
       user_id: userId,
       original: imageUrl,
@@ -78,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     if (insertError) console.error("History insert error:", insertError);
 
-    // Increment trial count for free users
+    // 🔄 Increment trial count if not premium
     if (!profile.is_premium) {
       await supabase
         .from("profiles")
@@ -86,6 +79,7 @@ export async function POST(req: NextRequest) {
         .eq("id", userId);
     }
 
+    // ✅ Respond with restored image
     return NextResponse.json({ restored });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
