@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient, SupabaseClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabaseClient";
 
 interface Profile {
   id: string;
@@ -21,19 +21,20 @@ interface HistoryItem {
 }
 
 export default function DashboardPage() {
-  const supabase: SupabaseClient = createClient();
+  const supabase = createClient();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
+  // Fetch profile and history
   useEffect(() => {
-    const fetchData = async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) return router.push("/auth/login");
+    const fetchProfileAndHistory = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) return router.push("/auth/login");
 
-      const userId = authData.user.id;
+      const userId = data.user.id;
 
-      // Fetch Profile
+      // --- Fetch profile ---
       const { data: profileData, error: profileError } = await supabase
         .from<Profile, Profile>("profiles") // row type, insert/update type
         .select("*")
@@ -42,39 +43,39 @@ export default function DashboardPage() {
       if (profileError || !profileData) return;
       setProfile(profileData);
 
-      // Fetch History
+      // --- Fetch history ---
       const { data: historyData } = await supabase
-        .from<HistoryItem, HistoryItem>("history") // row type, insert/update type
+        .from<HistoryItem, HistoryItem>("history")
         .select("*")
         .eq("user_id", userId);
       setHistory(historyData || []);
     };
 
-    fetchData();
+    fetchProfileAndHistory();
   }, []);
 
+  // --- Handle image upload ---
   const handleProcessImage = () => {
     if (!profile) return;
 
     if (!profile.is_premium && profile.trial_count >= 2) {
-      alert("Trial limit reached! Please subscribe to premium.");
+      alert("Trial limit reached! Subscribe to premium.");
       return;
     }
 
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = "image/*";
-
-    fileInput.onchange = async (e: Event) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
-      if (!target.files || !target.files[0]) return;
+      if (!target.files || target.files.length === 0) return;
       const file = target.files[0];
 
-      // Upload image
+      // Upload to Supabase storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("images")
         .upload(`uploads/${file.name}`, file, { upsert: true });
-      if (uploadError || !uploadData) return alert("Upload failed: " + uploadError.message);
+      if (uploadError || !uploadData) return alert(uploadError.message);
 
       const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
 
@@ -87,19 +88,18 @@ export default function DashboardPage() {
       const result = await res.json();
       if (result.error) return alert(result.error);
 
-      // Update trial count if not premium
+      // Update trial count if free
       if (!profile.is_premium) {
         const { data: updatedProfile } = await supabase
-          .from<Profile, Partial<Profile>>("profiles") // row type, update type
+          .from<Profile, Partial<Profile>>("profiles")
           .update({ trial_count: profile.trial_count + 1 })
           .eq("id", profile.id)
           .select()
           .single();
-
         if (updatedProfile) setProfile(updatedProfile);
       }
 
-      // Update history locally
+      // Add to history immediately
       setHistory((prev) => [
         ...prev,
         {
@@ -112,10 +112,10 @@ export default function DashboardPage() {
         },
       ]);
     };
-
-    fileInput.click();
+    input.click();
   };
 
+  // --- Upgrade to premium ---
   const handleUpgrade = async () => {
     if (!profile) return;
 
