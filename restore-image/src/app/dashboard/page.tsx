@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const TRIAL_LIMIT = 1; // Trial limit for free users
+  const TRIAL_LIMIT = 2; // Trial limit for free users
 
   // Fetch profile + history
   useEffect(() => {
