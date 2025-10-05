@@ -11,7 +11,7 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN!,
 });
 
-// Helper to extract valid image URL from Replicate outputs
+// Helper to safely extract image URL
 function extractUrl(result: unknown): string {
   if (typeof result === "string") return result;
   if (Array.isArray(result)) return result[0] ?? "";
@@ -23,11 +23,13 @@ function extractUrl(result: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as PipelineRequestBody;
-    const { userId, imageUrl } = body;
+    const { userId, imageUrl } = (await req.json()) as PipelineRequestBody;
 
     if (!userId || !imageUrl) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing parameters" },
+        { status: 400 }
+      );
     }
 
     const supabase = createClient();
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Trial limit
+    // Check trial limit
     if (!profile.is_premium && profile.trial_count >= 2) {
       return NextResponse.json(
         { error: "Trial limit reached. Please upgrade to premium." },
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 🧠 Step 1: Restore image
+    // 🧠 Process image using Flux Restore
     const restoredResult = await replicate.run(
       "flux-kontext-apps/restore-image:1d22d3b0e9ed7f1ebec8d5a8f8d8d6c5a7018e8f9cd56b27f3e9a2094f99b1b2",
       {
@@ -64,30 +66,19 @@ export async function POST(req: NextRequest) {
     );
 
     const restored = extractUrl(restoredResult);
-    if (!restored) throw new Error("Failed to get restored image URL");
+    if (!restored)
+      throw new Error("Failed to get restored image URL from Replicate");
 
-    // 🧠 Step 2: Colorize (optional)
-    const colorizedResult = await replicate.run(
-      "tencentarc/gfpgan:9289ba8b4b4c961eb2cb816b8f84a4e02db02b9e2b7b51ad7b4e45485e9d3b3e", // fallback colorizer
-      {
-        input: {
-          img: restored,
-          version: "1.4",
-        },
-      }
-    );
-
-    const colorized = extractUrl(colorizedResult);
-
-    // Save in history
-    await supabase.from("history").insert({
+    // Save to user history
+    const { error: insertError } = await supabase.from("history").insert({
       user_id: userId,
       original: imageUrl,
       restored,
-      colorized,
     });
 
-    // Update trial count
+    if (insertError) console.error("History insert error:", insertError);
+
+    // Increment trial count for free users
     if (!profile.is_premium) {
       await supabase
         .from("profiles")
@@ -95,7 +86,7 @@ export async function POST(req: NextRequest) {
         .eq("id", userId);
     }
 
-    return NextResponse.json({ restored, colorized });
+    return NextResponse.json({ restored });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Pipeline error:", message);
