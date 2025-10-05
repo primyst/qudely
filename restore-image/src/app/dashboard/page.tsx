@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const TRIAL_LIMIT = 1; // <-- Unified trial limit
+  const TRIAL_LIMIT = 1; // Trial limit for free users
 
   // Fetch profile + history
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // --- Handle image upload + restore process ---
+  // --- Handle image upload + restore ---
   const handleProcessImage = () => {
     if (!profile) return;
 
@@ -95,7 +95,8 @@ export default function DashboardPage() {
       const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
       toast.loading("Processing image...");
 
-      const res = await fetch("/api/pipeline", {
+      // --- Call HuggingFace / Gradio Space API ---
+      const res = await fetch("/api/restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: profile.id, imageUrl }),
@@ -159,6 +160,7 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">
       <Toaster position="top-right" />
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Welcome, {profile.email}</h1>
