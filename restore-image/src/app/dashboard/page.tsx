@@ -35,7 +35,7 @@ export default function DashboardPage() {
 
       const userId = authData.user.id;
 
-      // --- Profile ---
+      
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
