@@ -15,6 +15,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
 
@@ -33,6 +34,7 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         className="bg-white p-8 rounded-2xl shadow-xl w-96 space-y-6"
       >
+        <h1 className="text-4xl font-extrabold text-center text-blue-700">Qudely</h1>
         <h2 className="text-2xl font-bold text-gray-800 text-center">Welcome Back</h2>
         <p className="text-center text-gray-500">Enter your credentials to access your account</p>
 
@@ -63,9 +65,9 @@ export default function LoginPage() {
         </button>
 
         <p className="text-sm text-center text-gray-500">
-  Don&apos;t have an account?{" "}
-  <a href="/signup" className="text-blue-600 hover:underline font-medium">Sign Up</a>
-</p>
+          Don&apos;t have an account?{" "}
+          <a href="/signup" className="text-blue-600 hover:underline font-medium">Sign Up</a>
+        </p>
       </form>
     </div>
   );
