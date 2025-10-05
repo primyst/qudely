@@ -17,6 +17,7 @@ interface HistoryItem {
   user_id: string;
   original: string;
   restored: string;
+  colorized?: string; // ✅ added
   created_at: string;
 }
 
@@ -111,13 +112,14 @@ export default function DashboardPage() {
         setProfile({ ...profile, trial_count: updatedTrial });
       }
 
-      // Update UI immediately
+      // Update UI immediately with all 3 images
       setHistory((prev) => [
         {
           id: crypto.randomUUID(),
           user_id: profile.id,
           original: imageUrl,
           restored: result.restored,
+          colorized: result.colorized, // ✅ added
           created_at: new Date().toISOString(),
         },
         ...prev,
@@ -210,6 +212,13 @@ export default function DashboardPage() {
                   alt="Restored"
                   className="w-full h-40 object-cover rounded border"
                 />
+                {h.colorized && (
+                  <img
+                    src={h.colorized}
+                    alt="Colorized"
+                    className="w-full h-40 object-cover rounded border"
+                  />
+                )}
                 <p className="text-xs text-gray-500">
                   {new Date(h.created_at).toLocaleString()}
                 </p>
