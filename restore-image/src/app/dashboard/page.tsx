@@ -64,7 +64,7 @@ export default function DashboardPage() {
   const handleProcessImage = () => {
     if (!profile) return;
 
-    if (!profile.is_premium && profile.trial_count >= 2) {
+    if (!profile.is_premium && profile.trial_count >= 1) {
       return toast.error("Trial limit reached! Please upgrade to premium.");
     }
 
@@ -161,7 +161,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold">Welcome, {profile.email}</h1>
           <p className="text-gray-600">
-            Trial used: {profile.trial_count} / 2 | Status:{" "}
+            Trial used: {profile.trial_count} / 1 | Status:{" "}
             {profile.is_premium ? "Premium 🏅" : "Free"}
           </p>
         </div>
