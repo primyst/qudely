@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
+import toast, { Toaster } from "react-hot-toast";
 
 interface Profile {
   id: string;
@@ -29,21 +30,21 @@ export default function DashboardPage() {
   // Fetch profile and history
   useEffect(() => {
     const fetchProfileAndHistory = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data.user) return router.push("/auth/login");
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) return router.push("/auth/login");
 
-      const userId = data.user.id;
+      const userId = authData.user.id;
 
-      // --- Fetch profile ---
+      // Fetch profile
       const { data: profileData, error: profileError } = await supabase
         .from<Profile, Profile>("profiles") // row type, insert/update type
         .select("*")
         .eq("id", userId)
         .single();
-      if (profileError || !profileData) return;
+      if (profileError || !profileData) return toast.error("Failed to fetch profile");
       setProfile(profileData);
 
-      // --- Fetch history ---
+      // Fetch history
       const { data: historyData } = await supabase
         .from<HistoryItem, HistoryItem>("history")
         .select("*")
@@ -54,13 +55,12 @@ export default function DashboardPage() {
     fetchProfileAndHistory();
   }, []);
 
-  // --- Handle image upload ---
+  // Handle image upload and processing
   const handleProcessImage = () => {
     if (!profile) return;
 
     if (!profile.is_premium && profile.trial_count >= 2) {
-      alert("Trial limit reached! Subscribe to premium.");
-      return;
+      return toast.error("Trial limit reached! Subscribe to premium.");
     }
 
     const input = document.createElement("input");
@@ -71,22 +71,26 @@ export default function DashboardPage() {
       if (!target.files || target.files.length === 0) return;
       const file = target.files[0];
 
-      // Upload to Supabase storage
+      toast.loading("Uploading image...");
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("images")
         .upload(`uploads/${file.name}`, file, { upsert: true });
-      if (uploadError || !uploadData) return alert(uploadError.message);
+
+      if (uploadError || !uploadData) return toast.error("Upload failed: " + uploadError.message);
 
       const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
 
-      // Call AI pipeline
+      toast.loading("Processing image...");
+
       const res = await fetch("/api/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: profile.id, imageUrl }),
       });
+
       const result = await res.json();
-      if (result.error) return alert(result.error);
+      if (result.error) return toast.error(result.error);
 
       // Update trial count if free
       if (!profile.is_premium) {
@@ -99,7 +103,7 @@ export default function DashboardPage() {
         if (updatedProfile) setProfile(updatedProfile);
       }
 
-      // Add to history immediately
+      // Update history UI immediately
       setHistory((prev) => [
         ...prev,
         {
@@ -111,11 +115,14 @@ export default function DashboardPage() {
           created_at: new Date().toISOString(),
         },
       ]);
+
+      toast.success("Image processed successfully!");
     };
+
     input.click();
   };
 
-  // --- Upgrade to premium ---
+  // Upgrade to premium
   const handleUpgrade = async () => {
     if (!profile) return;
 
@@ -126,14 +133,19 @@ export default function DashboardPage() {
       .select()
       .single();
 
-    if (updatedProfile) setProfile(updatedProfile);
-    alert("Upgraded to premium! Unlimited access unlocked.");
+    if (updatedProfile) {
+      setProfile(updatedProfile);
+      toast.success("Upgraded to premium! Unlimited access unlocked.");
+    } else {
+      toast.error("Upgrade failed.");
+    }
   };
 
   if (!profile) return <p>Loading...</p>;
 
   return (
     <div className="p-6 space-y-4">
+      <Toaster position="top-right" />
       <h1 className="text-xl font-bold">Welcome {profile.email}</h1>
       <p>Trial used: {profile.trial_count} / 2</p>
       <p>Status: {profile.is_premium ? "Premium" : "Free"}</p>
