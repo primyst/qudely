@@ -10,7 +10,6 @@ interface RestoreRequestBody {
 export async function POST(req: NextRequest) {
   try {
     const { userId, imageUrl } = (await req.json()) as RestoreRequestBody;
-
     if (!userId || !imageUrl) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
     }
@@ -35,16 +34,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Validate API key ---
     const HF_API_KEY = process.env.HF_API_KEY;
-    if (!HF_API_KEY) {
-      throw new Error("HF_API_KEY not set in environment variables");
-    }
+    if (!HF_API_KEY) throw new Error("Missing Hugging Face API key");
 
-    // --- Assert type to satisfy TS ---
     const client = new Client(
-      "https://modelscope-old-photo-restoration.hf.space/--replicas/1pe40/",
-      { hf_token: HF_API_KEY as `hf_${string}` } // <-- Type assertion
+      "https://api-inference.huggingface.co/spaces/modelscope/old_photo_restoration",
+      { hf_token: HF_API_KEY as `hf_${string}` }
     );
 
     const result = await client.predict(imageUrl, { api_name: "/predict" });
