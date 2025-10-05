@@ -20,6 +20,11 @@ interface HistoryItem {
   created_at: string;
 }
 
+interface RestoreResponse {
+  restored: string;
+  error?: string;
+}
+
 export default function DashboardPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -27,9 +32,8 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const TRIAL_LIMIT = 2; // Trial limit for free users
+  const TRIAL_LIMIT = 2;
 
-  // Fetch profile + history
   useEffect(() => {
     const fetchData = async () => {
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -62,7 +66,6 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // --- Handle image upload + restore ---
   const handleProcessImage = () => {
     if (!profile) return;
 
@@ -93,46 +96,48 @@ export default function DashboardPage() {
       }
 
       const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
-      toast.loading("Processing image...");
+      toast.loading("Restoring image...");
 
-      // --- Call HuggingFace / Gradio Space API ---
-      const res = await fetch("/api/restore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: profile.id, imageUrl }),
-      });
+      try {
+        const res = await fetch("/api/restore", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: profile.id, imageUrl }),
+        });
 
-      const result = await res.json();
-      toast.dismiss();
-      setLoading(false);
+        const result: RestoreResponse = await res.json();
+        toast.dismiss();
+        setLoading(false);
 
-      if (result.error) return toast.error(result.error);
+        if (result.error) return toast.error(result.error);
 
-      // Update trial count locally
-      if (!profile.is_premium) {
-        const updatedTrial = profile.trial_count + 1;
-        setProfile({ ...profile, trial_count: updatedTrial });
+        // Update trial count locally
+        if (!profile.is_premium) {
+          setProfile({ ...profile, trial_count: profile.trial_count + 1 });
+        }
+
+        setHistory((prev) => [
+          {
+            id: crypto.randomUUID(),
+            user_id: profile.id,
+            original: imageUrl,
+            restored: result.restored,
+            created_at: new Date().toISOString(),
+          },
+          ...prev,
+        ]);
+
+        toast.success("Image restored successfully!");
+      } catch (err) {
+        toast.dismiss();
+        setLoading(false);
+        toast.error("Failed to restore image. Try again.");
       }
-
-      // Update UI with restored image
-      setHistory((prev) => [
-        {
-          id: crypto.randomUUID(),
-          user_id: profile.id,
-          original: imageUrl,
-          restored: result.restored,
-          created_at: new Date().toISOString(),
-        },
-        ...prev,
-      ]);
-
-      toast.success("Image restored successfully!");
     };
 
     input.click();
   };
 
-  // --- Upgrade to Premium ---
   const handleUpgrade = async () => {
     if (!profile) return;
 
@@ -149,7 +154,6 @@ export default function DashboardPage() {
     toast.success("Upgraded to premium! 🎉 Unlimited access unlocked.");
   };
 
-  // --- Logout ---
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/auth/login");
