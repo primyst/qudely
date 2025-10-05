@@ -12,7 +12,10 @@ export async function POST(req: NextRequest) {
     const { userId, imageUrl } = (await req.json()) as RestoreRequestBody;
 
     if (!userId || !imageUrl) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing parameters" },
+        { status: 400 }
+      );
     }
 
     const supabase = createClient();
@@ -28,6 +31,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Check trial limit for free users
     const TRIAL_LIMIT = 2;
     if (!profile.is_premium && profile.trial_count >= TRIAL_LIMIT) {
       return NextResponse.json(
@@ -36,21 +40,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 🔥 HuggingFace Gradio Client
+    // Initialize Gradio Client
     const client = new Client(
-      "https://modelscope-old-photo-restoration.hf.space/--replicas/1pe40/"
+      "https://modelscope-old-photo-restoration.hf.space/--replicas/1pe40/",
+      { hf_token: process.env.HF_API_KEY }
     );
 
-    // Use Authorization header instead of apiKey option
-    const result = await client.predict(imageUrl, {
-      api_name: "/predict",
-      headers: {
-        Authorization: `Bearer ${process.env.HF_API_KEY}`,
-      },
-    });
+    // Predict returns string URL for this Space
+    const result = await client.predict(imageUrl, { api_name: "/predict" });
 
     if (!result || typeof result !== "string") {
-      return NextResponse.json({ error: "Failed to restore image" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to restore image" },
+        { status: 500 }
+      );
     }
 
     const restoredImageUrl = result;
