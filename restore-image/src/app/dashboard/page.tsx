@@ -27,6 +27,8 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const TRIAL_LIMIT = 1; // <-- Unified trial limit
+
   // Fetch profile + history
   useEffect(() => {
     const fetchData = async () => {
@@ -64,7 +66,7 @@ export default function DashboardPage() {
   const handleProcessImage = () => {
     if (!profile) return;
 
-    if (!profile.is_premium && profile.trial_count >= 1) {
+    if (!profile.is_premium && profile.trial_count >= TRIAL_LIMIT) {
       return toast.error("Trial limit reached! Please upgrade to premium.");
     }
 
@@ -111,7 +113,7 @@ export default function DashboardPage() {
         setProfile({ ...profile, trial_count: updatedTrial });
       }
 
-      // Update UI with restored image only
+      // Update UI with restored image
       setHistory((prev) => [
         {
           id: crypto.randomUUID(),
@@ -129,7 +131,7 @@ export default function DashboardPage() {
     input.click();
   };
 
-  // --- Upgrade to Premium (mock) ---
+  // --- Upgrade to Premium ---
   const handleUpgrade = async () => {
     if (!profile) return;
 
@@ -161,7 +163,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold">Welcome, {profile.email}</h1>
           <p className="text-gray-600">
-            Trial used: {profile.trial_count} / 1 | Status:{" "}
+            Trial used: {profile.trial_count} / {TRIAL_LIMIT} | Status:{" "}
             {profile.is_premium ? "Premium 🏅" : "Free"}
           </p>
         </div>
@@ -182,7 +184,7 @@ export default function DashboardPage() {
         {loading ? "Processing..." : "Upload & Restore Image"}
       </button>
 
-      {!profile.is_premium && profile.trial_count >= 2 && (
+      {!profile.is_premium && profile.trial_count >= TRIAL_LIMIT && (
         <button
           onClick={handleUpgrade}
           className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
