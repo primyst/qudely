@@ -7,15 +7,11 @@ interface PipelineRequestBody {
   imageUrl: string;
 }
 
-interface PipelineResponse {
-  restored: string;
-}
-
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN!,
 });
 
-// Helper to safely extract string URL from Replicate output
+// Helper to extract valid image URL from Replicate outputs
 function extractUrl(result: unknown): string {
   if (typeof result === "string") return result;
   if (Array.isArray(result)) return result[0] ?? "";
@@ -27,7 +23,7 @@ function extractUrl(result: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: PipelineRequestBody = await req.json();
+    const body = (await req.json()) as PipelineRequestBody;
     const { userId, imageUrl } = body;
 
     if (!userId || !imageUrl) {
@@ -43,12 +39,11 @@ export async function POST(req: NextRequest) {
       .eq("id", userId)
       .single();
 
-    if (profileError) {
-      console.error("Profile error:", profileError);
+    if (profileError || !profile) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Enforce trial limit
+    // Trial limit
     if (!profile.is_premium && profile.trial_count >= 2) {
       return NextResponse.json(
         { error: "Trial limit reached. Please upgrade to premium." },
@@ -56,7 +51,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Step 1: Restore + Colorize using FLUX Kontext ---
+    // 🧠 Step 1: Restore image
     const restoredResult = await replicate.run(
       "flux-kontext-apps/restore-image:1d22d3b0e9ed7f1ebec8d5a8f8d8d6c5a7018e8f9cd56b27f3e9a2094f99b1b2",
       {
@@ -71,18 +66,28 @@ export async function POST(req: NextRequest) {
     const restored = extractUrl(restoredResult);
     if (!restored) throw new Error("Failed to get restored image URL");
 
-    // Save history in Supabase
-    const { error: insertError } = await supabase.from("history").insert({
+    // 🧠 Step 2: Colorize (optional)
+    const colorizedResult = await replicate.run(
+      "tencentarc/gfpgan:9289ba8b4b4c961eb2cb816b8f84a4e02db02b9e2b7b51ad7b4e45485e9d3b3e", // fallback colorizer
+      {
+        input: {
+          img: restored,
+          version: "1.4",
+        },
+      }
+    );
+
+    const colorized = extractUrl(colorizedResult);
+
+    // Save in history
+    await supabase.from("history").insert({
       user_id: userId,
       original: imageUrl,
       restored,
+      colorized,
     });
 
-    if (insertError) {
-      console.error("Error inserting history:", insertError);
-    }
-
-    // Increment trial count if not premium
+    // Update trial count
     if (!profile.is_premium) {
       await supabase
         .from("profiles")
@@ -90,9 +95,8 @@ export async function POST(req: NextRequest) {
         .eq("id", userId);
     }
 
-    const response: PipelineResponse = { restored };
-    return NextResponse.json(response);
-  } catch (err: unknown) {
+    return NextResponse.json({ restored, colorized });
+  } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Pipeline error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
