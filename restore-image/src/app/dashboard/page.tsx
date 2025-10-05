@@ -32,17 +32,18 @@ export default function DashboardPage() {
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) return router.push("/auth/login");
 
+      // --- Profile fetch ---
       const { data: profileData, error: profileError } = await supabase
-        .from<Profile>("profiles")
+        .from<Profile, Profile>("profiles") // row type, insert/update type
         .select("*")
         .eq("id", data.user.id)
         .single();
       if (profileError || !profileData) return;
-
       setProfile(profileData);
 
+      // --- History fetch ---
       const { data: historyData } = await supabase
-        .from<HistoryItem>("history")
+        .from<HistoryItem, HistoryItem>("history")
         .select("*")
         .eq("user_id", data.user.id);
       setHistory(historyData || []);
@@ -73,6 +74,7 @@ export default function DashboardPage() {
         .from("images")
         .upload(`uploads/${file.name}`, file, { upsert: true });
       if (uploadError || !uploadData) return alert("Upload failed: " + uploadError.message);
+
       const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
 
       // Call AI pipeline
@@ -87,15 +89,16 @@ export default function DashboardPage() {
       // Update trial count if not premium
       if (!profile.is_premium) {
         const { data: updatedProfile } = await supabase
-          .from<Profile>("profiles")
-          .update({ trial_count: profile.trial_count + 1 } as Partial<Profile>)
+          .from<Profile, Partial<Profile>>("profiles") // row type, update type
+          .update({ trial_count: profile.trial_count + 1 })
           .eq("id", profile.id)
           .select()
           .single();
+
         if (updatedProfile) setProfile(updatedProfile);
       }
 
-      // Update history
+      // Update history UI immediately
       setHistory((prev) => [
         ...prev,
         {
@@ -107,18 +110,17 @@ export default function DashboardPage() {
           created_at: new Date().toISOString(),
         },
       ]);
-
-      alert("Image processed! Check your history below.");
     };
     fileInput.click();
   };
 
+  // Upgrade to premium
   const handleUpgrade = async () => {
     if (!profile) return;
 
     const { data: updatedProfile } = await supabase
-      .from<Profile>("profiles")
-      .update({ is_premium: true } as Partial<Profile>)
+      .from<Profile, Partial<Profile>>("profiles") // row type, update type
+      .update({ is_premium: true })
       .eq("id", profile.id)
       .select()
       .single();
