@@ -34,7 +34,8 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0", 
     "react-before-after-slider-component": "^1.1.8",
     "lucide-react": "^0.510.0", 
-"react-hot-toast": "^2.4.0"
+"react-hot-toast": "^2.4.0", 
+"@gradio/client": "^0.8.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
