@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
@@ -33,7 +33,7 @@ export default function DashboardPage() {
       if (error || !data.user) return router.push("/auth/login");
 
       const { data: profileData, error: profileError } = await supabase
-        .from<Profile, Profile>("profiles")
+        .from<Profile>("profiles")
         .select("*")
         .eq("id", data.user.id)
         .single();
@@ -42,7 +42,7 @@ export default function DashboardPage() {
       setProfile(profileData);
 
       const { data: historyData } = await supabase
-        .from<HistoryItem, HistoryItem>("history")
+        .from<HistoryItem>("history")
         .select("*")
         .eq("user_id", data.user.id);
       setHistory(historyData || []);
@@ -72,7 +72,7 @@ export default function DashboardPage() {
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("images")
         .upload(`uploads/${file.name}`, file, { upsert: true });
-      if (uploadError || !uploadData) return alert("Upload failed: " + uploadError?.message);
+      if (uploadError || !uploadData) return alert("Upload failed: " + uploadError.message);
       const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
 
       // Call AI pipeline
@@ -87,8 +87,8 @@ export default function DashboardPage() {
       // Update trial count if not premium
       if (!profile.is_premium) {
         const { data: updatedProfile } = await supabase
-          .from<Profile, Profile>("profiles")
-          .update({ trial_count: profile.trial_count + 1 })
+          .from<Profile>("profiles")
+          .update({ trial_count: profile.trial_count + 1 } as Partial<Profile>)
           .eq("id", profile.id)
           .select()
           .single();
@@ -115,12 +115,14 @@ export default function DashboardPage() {
 
   const handleUpgrade = async () => {
     if (!profile) return;
+
     const { data: updatedProfile } = await supabase
-      .from<Profile, Profile>("profiles")
-      .update({ is_premium: true })
+      .from<Profile>("profiles")
+      .update({ is_premium: true } as Partial<Profile>)
       .eq("id", profile.id)
       .select()
       .single();
+
     if (updatedProfile) setProfile(updatedProfile);
     alert("Upgraded to premium! Unlimited access unlocked.");
   };
