@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabaseClient";
+import { createClient, SupabaseClient } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
 interface Profile {
@@ -21,38 +21,38 @@ interface HistoryItem {
 }
 
 export default function DashboardPage() {
-  const supabase = createClient();
+  const supabase: SupabaseClient = createClient();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  // Fetch profile and history
   useEffect(() => {
-    const fetchProfileAndHistory = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data.user) return router.push("/auth/login");
+    const fetchData = async () => {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError || !authData.user) return router.push("/auth/login");
 
-      // --- Profile fetch ---
+      const userId = authData.user.id;
+
+      // Fetch Profile
       const { data: profileData, error: profileError } = await supabase
         .from<Profile, Profile>("profiles") // row type, insert/update type
         .select("*")
-        .eq("id", data.user.id)
+        .eq("id", userId)
         .single();
       if (profileError || !profileData) return;
       setProfile(profileData);
 
-      // --- History fetch ---
+      // Fetch History
       const { data: historyData } = await supabase
-        .from<HistoryItem, HistoryItem>("history")
+        .from<HistoryItem, HistoryItem>("history") // row type, insert/update type
         .select("*")
-        .eq("user_id", data.user.id);
+        .eq("user_id", userId);
       setHistory(historyData || []);
     };
 
-    fetchProfileAndHistory();
+    fetchData();
   }, []);
 
-  // Handle AI image processing
   const handleProcessImage = () => {
     if (!profile) return;
 
@@ -64,12 +64,13 @@ export default function DashboardPage() {
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.accept = "image/*";
+
     fileInput.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
-      if (!target.files || target.files.length === 0) return;
+      if (!target.files || !target.files[0]) return;
       const file = target.files[0];
 
-      // Upload to Supabase storage
+      // Upload image
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("images")
         .upload(`uploads/${file.name}`, file, { upsert: true });
@@ -98,7 +99,7 @@ export default function DashboardPage() {
         if (updatedProfile) setProfile(updatedProfile);
       }
 
-      // Update history UI immediately
+      // Update history locally
       setHistory((prev) => [
         ...prev,
         {
@@ -111,15 +112,15 @@ export default function DashboardPage() {
         },
       ]);
     };
+
     fileInput.click();
   };
 
-  // Upgrade to premium
   const handleUpgrade = async () => {
     if (!profile) return;
 
     const { data: updatedProfile } = await supabase
-      .from<Profile, Partial<Profile>>("profiles") // row type, update type
+      .from<Profile, Partial<Profile>>("profiles")
       .update({ is_premium: true })
       .eq("id", profile.id)
       .select()
@@ -137,18 +138,12 @@ export default function DashboardPage() {
       <p>Trial used: {profile.trial_count} / 2</p>
       <p>Status: {profile.is_premium ? "Premium" : "Free"}</p>
 
-      <button
-        className="bg-blue-500 text-white px-3 py-2 rounded"
-        onClick={handleProcessImage}
-      >
+      <button className="bg-blue-500 text-white px-3 py-2 rounded" onClick={handleProcessImage}>
         Process Image
       </button>
 
       {!profile.is_premium && profile.trial_count >= 2 && (
-        <button
-          className="bg-green-500 text-white px-3 py-2 rounded"
-          onClick={handleUpgrade}
-        >
+        <button className="bg-green-500 text-white px-3 py-2 rounded" onClick={handleUpgrade}>
           Upgrade to Premium
         </button>
       )}
