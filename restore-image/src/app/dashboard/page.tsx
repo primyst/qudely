@@ -17,7 +17,6 @@ interface HistoryItem {
   user_id: string;
   original: string;
   restored: string;
-  colorized?: string; // ✅ added
   created_at: string;
 }
 
@@ -28,7 +27,7 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch user profile + history
+  // Fetch profile + history
   useEffect(() => {
     const fetchData = async () => {
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -61,7 +60,7 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // --- Handle image upload + pipeline process ---
+  // --- Handle image upload + restore process ---
   const handleProcessImage = () => {
     if (!profile) return;
 
@@ -112,20 +111,19 @@ export default function DashboardPage() {
         setProfile({ ...profile, trial_count: updatedTrial });
       }
 
-      // Update UI immediately with all 3 images
+      // Update UI with restored image only
       setHistory((prev) => [
         {
           id: crypto.randomUUID(),
           user_id: profile.id,
           original: imageUrl,
           restored: result.restored,
-          colorized: result.colorized, // ✅ added
           created_at: new Date().toISOString(),
         },
         ...prev,
       ]);
 
-      toast.success("Image processed successfully!");
+      toast.success("Image restored successfully!");
     };
 
     input.click();
@@ -212,13 +210,6 @@ export default function DashboardPage() {
                   alt="Restored"
                   className="w-full h-40 object-cover rounded border"
                 />
-                {h.colorized && (
-                  <img
-                    src={h.colorized}
-                    alt="Colorized"
-                    className="w-full h-40 object-cover rounded border"
-                  />
-                )}
                 <p className="text-xs text-gray-500">
                   {new Date(h.created_at).toLocaleString()}
                 </p>
