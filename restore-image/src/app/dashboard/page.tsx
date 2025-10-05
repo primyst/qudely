@@ -35,27 +35,30 @@ export default function DashboardPage() {
 
       const userId = authData.user.id;
 
-      // Fetch profile
+      // --- Profile ---
       const { data: profileData, error: profileError } = await supabase
-        .from<Profile, Profile>("profiles") // row type, insert/update type
+        .from("profiles")
         .select("*")
         .eq("id", userId)
         .single();
-      if (profileError || !profileData) return toast.error("Failed to fetch profile");
-      setProfile(profileData);
 
-      // Fetch history
+      if (profileError || !profileData) return toast.error("Failed to fetch profile");
+
+      setProfile(profileData as Profile);
+
+      // --- History ---
       const { data: historyData } = await supabase
-        .from<HistoryItem, HistoryItem>("history")
+        .from("history")
         .select("*")
         .eq("user_id", userId);
-      setHistory(historyData || []);
+
+      setHistory((historyData || []) as HistoryItem[]);
     };
 
     fetchProfileAndHistory();
   }, []);
 
-  // Handle image upload and processing
+  // Process image
   const handleProcessImage = () => {
     if (!profile) return;
 
@@ -69,8 +72,8 @@ export default function DashboardPage() {
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
       if (!target.files || target.files.length === 0) return;
-      const file = target.files[0];
 
+      const file = target.files[0];
       toast.loading("Uploading image...");
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -92,18 +95,19 @@ export default function DashboardPage() {
       const result = await res.json();
       if (result.error) return toast.error(result.error);
 
-      // Update trial count if free
+      // Update trial count if not premium
       if (!profile.is_premium) {
         const { data: updatedProfile } = await supabase
-          .from<Profile, Partial<Profile>>("profiles")
+          .from("profiles")
           .update({ trial_count: profile.trial_count + 1 })
           .eq("id", profile.id)
           .select()
           .single();
-        if (updatedProfile) setProfile(updatedProfile);
+
+        if (updatedProfile) setProfile(updatedProfile as Profile);
       }
 
-      // Update history UI immediately
+      // Update history immediately
       setHistory((prev) => [
         ...prev,
         {
@@ -127,14 +131,14 @@ export default function DashboardPage() {
     if (!profile) return;
 
     const { data: updatedProfile } = await supabase
-      .from<Profile, Partial<Profile>>("profiles")
+      .from("profiles")
       .update({ is_premium: true })
       .eq("id", profile.id)
       .select()
       .single();
 
     if (updatedProfile) {
-      setProfile(updatedProfile);
+      setProfile(updatedProfile as Profile);
       toast.success("Upgraded to premium! Unlimited access unlocked.");
     } else {
       toast.error("Upgrade failed.");
