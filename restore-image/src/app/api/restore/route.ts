@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check trial limit for free users
-    const TRIAL_LIMIT = 1;
+    const TRIAL_LIMIT = 2;
     if (!profile.is_premium && profile.trial_count >= TRIAL_LIMIT) {
       return NextResponse.json(
         { error: "Trial limit reached. Please upgrade to premium." },
