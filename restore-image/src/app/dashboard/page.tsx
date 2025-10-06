@@ -21,7 +21,7 @@ interface HistoryItem {
 }
 
 interface RestoreResponse {
-  restored: string;
+  restored?: string;
   error?: string;
 }
 
@@ -34,6 +34,7 @@ export default function DashboardPage() {
 
   const TRIAL_LIMIT = 2;
 
+  // Fetch profile and history
   useEffect(() => {
     const fetchData = async () => {
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -51,7 +52,6 @@ export default function DashboardPage() {
         toast.error("Failed to fetch profile");
         return;
       }
-
       setProfile(profileData as Profile);
 
       const { data: historyData } = await supabase
@@ -66,11 +66,11 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
+  // Handle image upload and restoration
   const handleProcessImage = () => {
     if (!profile) return;
-
     if (!profile.is_premium && profile.trial_count >= TRIAL_LIMIT) {
-      return toast.error("Trial limit reached! Please upgrade to premium.");
+      return toast.error("Trial limit reached! Please upgrade.");
     }
 
     const input = document.createElement("input");
@@ -110,6 +110,7 @@ export default function DashboardPage() {
         setLoading(false);
 
         if (result.error) return toast.error(result.error);
+        if (!result.restored) return toast.error("No restored image returned");
 
         if (!profile.is_premium) {
           setProfile({ ...profile, trial_count: profile.trial_count + 1 });
@@ -120,17 +121,17 @@ export default function DashboardPage() {
             id: crypto.randomUUID(),
             user_id: profile.id,
             original: imageUrl,
-            restored: result.restored,
+            restored: result.restored!,
             created_at: new Date().toISOString(),
           },
           ...prev,
         ]);
 
         toast.success("Image restored successfully!");
-      } catch (err: any) {
+      } catch (err) {
         toast.dismiss();
         setLoading(false);
-        toast.error(err?.message || "Failed to restore image. Try again.");
+        toast.error("Failed to restore image. Try again.");
       }
     };
 
@@ -150,7 +151,7 @@ export default function DashboardPage() {
     if (error || !updatedProfile) return toast.error("Upgrade failed.");
 
     setProfile(updatedProfile as Profile);
-    toast.success("Upgraded to premium! 🎉 Unlimited access unlocked.");
+    toast.success("Upgraded to premium! 🎉");
   };
 
   const handleLogout = async () => {
