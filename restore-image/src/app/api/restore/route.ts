@@ -10,13 +10,13 @@ interface RestoreRequestBody {
 export async function POST(req: NextRequest) {
   try {
     const { userId, imageUrl } = (await req.json()) as RestoreRequestBody;
-
     if (!userId || !imageUrl) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
     }
 
     const supabase = createClient();
 
+    // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("trial_count, is_premium")
@@ -27,44 +27,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Check trial limit
     const TRIAL_LIMIT = 2;
     if (!profile.is_premium && profile.trial_count >= TRIAL_LIMIT) {
-      return NextResponse.json(
-        { error: "Trial limit reached. Please upgrade to premium." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Trial limit reached. Please upgrade." }, { status: 403 });
     }
 
-    // Validate Hugging Face API key
+    // Hugging Face Gradio client
     const HF_API_KEY = process.env.HF_API_KEY as `hf_${string}`;
-    if (!HF_API_KEY) throw new Error("Missing Hugging Face API key or it must start with 'hf_'");
+    if (!HF_API_KEY) throw new Error("Missing Hugging Face API key");
 
-    // Use the correct Space URL
-    const client = new Client("https://modelscope-old-photo-restoration.hf.space", {
-      hf_token: HF_API_KEY,
-    });
+    const client = new Client(
+      "https://modelscope-old-photo-restoration.hf.space",
+      { hf_token: HF_API_KEY }
+    );
 
-    // Predict returns restored image URL
-    let restoredImageUrl: string;
-    try {
-      const result = await client.predict(imageUrl, { api_name: "/predict" });
-      if (!result || typeof result !== "string") {
-        throw new Error("Gradio did not return a valid string URL");
-      }
-      restoredImageUrl = result;
-    } catch (gradioErr: any) {
-      console.error("Gradio error:", gradioErr);
-      return NextResponse.json(
-        { error: gradioErr.message || "Failed to restore image via Gradio" },
-        { status: 500 }
-      );
+    // Predict
+    const result = await client.predict(imageUrl, { api_name: "/predict" });
+
+    if (!result || typeof result !== "string") {
+      return NextResponse.json({ error: "Failed to restore image" }, { status: 500 });
     }
 
     // Save history
     await supabase.from("history").insert({
       user_id: userId,
       original: imageUrl,
-      restored: restoredImageUrl,
+      restored: result,
     });
 
     // Increment trial count for free users
@@ -75,7 +64,7 @@ export async function POST(req: NextRequest) {
         .eq("id", userId);
     }
 
-    return NextResponse.json({ restored: restoredImageUrl });
+    return NextResponse.json({ restored: result });
   } catch (err) {
     console.error("Restore API error:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
