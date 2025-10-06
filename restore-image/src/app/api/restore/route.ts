@@ -10,6 +10,7 @@ interface RestoreRequestBody {
 export async function POST(req: NextRequest) {
   try {
     const { userId, imageUrl } = (await req.json()) as RestoreRequestBody;
+
     if (!userId || !imageUrl) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
     }
@@ -34,28 +35,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const HF_API_KEY = process.env.HF_API_KEY;
-    if (!HF_API_KEY) throw new Error("Missing Hugging Face API key");
+    // Validate Hugging Face API key
+    const HF_API_KEY = process.env.HF_API_KEY as `hf_${string}`;
+    if (!HF_API_KEY) throw new Error("Missing Hugging Face API key or it must start with 'hf_'");
 
-    const client = new Client(
-      "https://api-inference.huggingface.co/spaces/modelscope/old_photo_restoration",
-      { hf_token: HF_API_KEY as `hf_${string}` }
-    );
+    // Use the correct Space URL
+    const client = new Client("https://modelscope-old-photo-restoration.hf.space", {
+      hf_token: HF_API_KEY,
+    });
 
-    const result = await client.predict(imageUrl, { api_name: "/predict" });
-
-    if (!result || typeof result !== "string") {
-      return NextResponse.json({ error: "Failed to restore image" }, { status: 500 });
+    // Predict returns restored image URL
+    let restoredImageUrl: string;
+    try {
+      const result = await client.predict(imageUrl, { api_name: "/predict" });
+      if (!result || typeof result !== "string") {
+        throw new Error("Gradio did not return a valid string URL");
+      }
+      restoredImageUrl = result;
+    } catch (gradioErr: any) {
+      console.error("Gradio error:", gradioErr);
+      return NextResponse.json(
+        { error: gradioErr.message || "Failed to restore image via Gradio" },
+        { status: 500 }
+      );
     }
 
-    const restoredImageUrl = result;
-
+    // Save history
     await supabase.from("history").insert({
       user_id: userId,
       original: imageUrl,
       restored: restoredImageUrl,
     });
 
+    // Increment trial count for free users
     if (!profile.is_premium) {
       await supabase
         .from("profiles")
