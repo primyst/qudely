@@ -111,7 +111,6 @@ export default function DashboardPage() {
 
         if (result.error) return toast.error(result.error);
 
-        // Update trial count locally
         if (!profile.is_premium) {
           setProfile({ ...profile, trial_count: profile.trial_count + 1 });
         }
@@ -128,10 +127,10 @@ export default function DashboardPage() {
         ]);
 
         toast.success("Image restored successfully!");
-      } catch (err) {
+      } catch (err: any) {
         toast.dismiss();
         setLoading(false);
-        toast.error("Failed to restore image. Try again.");
+        toast.error(err?.message || "Failed to restore image. Try again.");
       }
     };
 
