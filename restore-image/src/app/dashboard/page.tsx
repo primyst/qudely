@@ -1,120 +1,136 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, ChangeEvent } from "react";
+import axios from "axios";
 import Image from "next/image";
-import axios, { AxiosResponse } from "axios";
 
 interface RestoreResponse {
-  restored?: string;
+  restored: string;
   error?: string;
 }
 
 export default function RestorePage() {
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string>("");
-  const [restoredImage, setRestoredImage] = useState<string>("");
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [restored, setRestored] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setPreview(URL.createObjectURL(selectedFile));
-      setRestoredImage("");
-      setError("");
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setImageUrl("");
     }
   };
 
+  const handleUrlChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    setImageUrl(e.target.value);
+    setFile(null);
+  };
+
   const handleRestore = async (): Promise<void> => {
-    if (!file) {
-      setError("Please upload an image file");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    setRestoredImage("");
-
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      setLoading(true);
+      setError("");
+      setRestored("");
 
-      const response: AxiosResponse<RestoreResponse> = await axios.post(
-        "https://qudely.onrender.com/restore",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      let response;
 
-      if (response.data.restored) {
-        setRestoredImage(response.data.restored);
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        response = await axios.post<RestoreResponse>(
+          "https://qudely.onrender.com/restore",
+          formData,
+          {
+            headers: { "Content-Type": "multipart/form-data" },
+          }
+        );
+      } else if (imageUrl.trim() !== "") {
+        response = await axios.post<RestoreResponse>(
+          "https://qudely.onrender.com/restore",
+          { imageUrl },
+          { headers: { "Content-Type": "application/json" } }
+        );
       } else {
-        setError(response.data.error || "Failed to restore image.");
+        setError("Please upload an image or enter an image URL.");
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong. Please try again.");
+
+      if (response.data.error) {
+        throw new Error(response.data.error);
+      }
+
+      setRestored(response.data.restored);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.error ?? err.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Unknown error occurred.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-        <h1 className="text-xl font-bold mb-4 text-center">
-          🪄 Qudely Photo Restoration
-        </h1>
+  const renderImage = (src: string): JSX.Element => {
+    const isBase64 = !src.startsWith("http");
+    const imageSrc = isBase64 ? `data:image/png;base64,${src}` : src;
 
+    return (
+      <div className="mt-4">
+        <h3 className="text-lg font-semibold mb-2">Restored Image:</h3>
+        <Image
+          src={imageSrc}
+          alt="Restored"
+          width={400}
+          height={400}
+          className="rounded-lg border"
+        />
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      <h1 className="text-3xl font-bold mb-6 text-center">
+        🪄 Old Photo Restoration
+      </h1>
+
+      <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md space-y-4">
         <input
           type="file"
           accept="image/*"
           onChange={handleFileChange}
-          className="w-full mb-4"
+          className="w-full border p-2 rounded"
         />
 
-        {preview && (
-          <div className="mb-4">
-            <h2 className="font-semibold mb-2 text-center">Preview</h2>
-            <div className="relative w-full h-64">
-              <Image
-                src={preview}
-                alt="Uploaded Preview"
-                fill
-                className="object-contain rounded-md border"
-              />
-            </div>
-          </div>
-        )}
+        <div className="text-center text-gray-500">or</div>
+
+        <input
+          type="text"
+          placeholder="Enter image URL"
+          value={imageUrl}
+          onChange={handleUrlChange}
+          className="w-full border p-2 rounded"
+        />
 
         <button
           onClick={handleRestore}
           disabled={loading}
-          className="w-full bg-blue-600 text-white rounded-md p-2 hover:bg-blue-700 transition disabled:bg-gray-400"
+          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
         >
-          {loading ? "Restoring..." : "Restore Image"}
+          {loading ? "Restoring..." : "Restore Photo"}
         </button>
 
-        {error && <p className="text-red-500 mt-3 text-center">{error}</p>}
+        {error && <p className="text-red-600 mt-2 text-center">{error}</p>}
 
-        {restoredImage && (
-          <div className="mt-6 text-center">
-            <h2 className="font-semibold mb-2">Restored Image</h2>
-            <div className="relative w-full h-64">
-              <Image
-                src={restoredImage}
-                alt="Restored"
-                fill
-                className="object-contain rounded-md border"
-              />
-            </div>
-          </div>
-        )}
+        {restored && renderImage(restored)}
       </div>
-    </main>
+    </div>
   );
 }
