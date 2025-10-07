@@ -6,13 +6,30 @@ import axios from "axios";
 
 export default function RestorePage() {
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState("");
   const [restoredImage, setRestoredImage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImageUrl("");
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImageUrl(e.target.value);
+    setImageFile(null);
+    setPreview(e.target.value);
+  };
+
   const handleRestore = async () => {
-    if (!imageUrl) {
-      setError("Please enter an image URL");
+    if (!imageUrl && !imageFile) {
+      setError("Please upload an image or enter an image URL");
       return;
     }
 
@@ -21,9 +38,19 @@ export default function RestorePage() {
     setRestoredImage("");
 
     try {
-      const response = await axios.post("https://qudely.onrender.com/restore", {
-        imageUrl,
-      });
+      let response;
+
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append("file", imageFile);
+        response = await axios.post("https://qudely.onrender.com/restore", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        response = await axios.post("https://qudely.onrender.com/restore", {
+          imageUrl,
+        });
+      }
 
       if (response.data.restored) {
         setRestoredImage(response.data.restored);
@@ -45,13 +72,38 @@ export default function RestorePage() {
           🪄 Old Photo Restoration
         </h1>
 
+        {/* Image Upload */}
+        <label className="block mb-3 text-gray-700 font-medium">
+          Upload Image:
+        </label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="w-full mb-4"
+        />
+
+        {/* OR enter URL */}
+        <div className="relative mb-3 text-center text-gray-500">— OR —</div>
         <input
           type="text"
           placeholder="Enter Image URL..."
           value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
+          onChange={handleUrlChange}
           className="w-full border border-gray-300 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+
+        {/* Preview */}
+        {preview && (
+          <div className="relative w-full h-64 mb-4">
+            <Image
+              src={preview}
+              alt="Preview"
+              fill
+              className="object-contain rounded-md border"
+            />
+          </div>
+        )}
 
         <button
           onClick={handleRestore}
@@ -63,6 +115,7 @@ export default function RestorePage() {
 
         {error && <p className="text-red-500 mt-3 text-center">{error}</p>}
 
+        {/* Restored image */}
         {restoredImage && (
           <div className="mt-6 text-center">
             <h2 className="font-semibold mb-2">Restored Image</h2>
