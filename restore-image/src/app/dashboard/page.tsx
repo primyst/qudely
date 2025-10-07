@@ -20,31 +20,32 @@ export default function RestorePage() {
     }
   };
 
-  const handleRestore = async () => {
-    if (!file) return alert("Please upload an image first!");
+  const handleRestore = async (): Promise<void> => {
+  if (!file) {
+    alert("Please upload an image first!");
+    return;
+  }
 
-    const formData = new FormData();
-    formData.append("image", file);
+  const formData = new FormData();
+  formData.append("file", file); // <-- must match backend
 
-    setLoading(true);
-    try {
-      const res = await axios.post(
-        "https://qudely.onrender.com/restore",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+  setLoading(true);
+  try {
+    const res = await axios.post(
+      "https://qudely.onrender.com/restore",
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
 
-      const base64 = res.data.image as string;
-      setRestoredImage(`data:image/png;base64,${base64}`);
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong restoring the image.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const restored = res.data.restored as string; // backend returns data:image/png;base64,...
+    setRestoredImage(restored);
+  } catch (err: unknown) {
+    console.error(err);
+    alert("Something went wrong restoring the image.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const renderImage = (src: string): React.ReactElement => (
     <div className="relative w-full h-64 sm:h-80 md:h-96 rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-gray-50">
