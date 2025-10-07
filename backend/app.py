@@ -16,8 +16,8 @@ if not HF_API_KEY or not HF_API_KEY.startswith("hf_"):
 app = Flask(__name__)
 CORS(app)
 
-# Initialize Gradio client for the model
-MODEL_URL = "modelscope-old-photo-restoration"
+# ✅ Use full Hugging Face Space URL instead of model ID
+MODEL_URL = "https://modelscope-old-photo-restoration.hf.space"
 client = Client(MODEL_URL, hf_token=HF_API_KEY)
 
 @app.route("/")
@@ -33,18 +33,18 @@ def restore_image():
         if not image_url:
             return jsonify({"error": "Missing imageUrl"}), 400
 
-        # Run the restoration model
+        # 🔥 Run prediction (Gradio Space)
         result = client.predict(image_url, api_name="/predict")
 
-        # result returns a tuple like (restored_image, colored_image)
-        if not isinstance(result, (list, tuple)) or len(result) == 0:
+        # result might be a list or tuple depending on the Space
+        if isinstance(result, (list, tuple)) and len(result) > 0:
+            restored_image_url = result[0]
+        elif isinstance(result, str):
+            restored_image_url = result
+        else:
             return jsonify({"error": "Invalid model response"}), 500
 
-        restored_image_url = result[0]  # Use the restored image
-
-        return jsonify({
-            "restored": restored_image_url
-        })
+        return jsonify({"restored": restored_image_url})
 
     except Exception as e:
         print(f"❌ Error: {e}")
