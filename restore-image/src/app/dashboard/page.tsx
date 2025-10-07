@@ -1,44 +1,45 @@
 "use client";
 
-import React, { useState, ChangeEvent } from "react";
-import axios from "axios";
-import Image from "next/image";
+import React, { useState } from "react";
+import axios, { AxiosResponse } from "axios";
 
 interface RestoreResponse {
   restored: string;
-  error?: string;
 }
 
-export default function RestorePage() {
-  const [file, setFile] = useState<File | null>(null);
+export default function RestorePage(): JSX.Element {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [restored, setRestored] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setImageUrl("");
-    }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0];
+    setSelectedFile(file || null);
+    setImageUrl("");
+    setRestored("");
+    setError("");
   };
 
-  const handleUrlChange = (e: ChangeEvent<HTMLInputElement>): void => {
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setImageUrl(e.target.value);
-    setFile(null);
+    setSelectedFile(null);
+    setRestored("");
+    setError("");
   };
 
-  const handleRestore = async (): Promise<void> => {
+  const handleSubmit = async (): Promise<void> => {
     try {
       setLoading(true);
       setError("");
       setRestored("");
 
-      let response;
+      let response: AxiosResponse<RestoreResponse>;
 
-      if (file) {
+      if (selectedFile) {
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", selectedFile);
 
         response = await axios.post<RestoreResponse>(
           "https://qudely.onrender.com/restore",
@@ -47,89 +48,89 @@ export default function RestorePage() {
             headers: { "Content-Type": "multipart/form-data" },
           }
         );
-      } else if (imageUrl.trim() !== "") {
+      } else if (imageUrl) {
         response = await axios.post<RestoreResponse>(
           "https://qudely.onrender.com/restore",
           { imageUrl },
           { headers: { "Content-Type": "application/json" } }
         );
       } else {
-        setError("Please upload an image or enter an image URL.");
-        setLoading(false);
+        setError("Please upload an image or enter a URL.");
         return;
       }
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
-      }
-
-      setRestored(response.data.restored);
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error ?? err.message);
-      } else if (err instanceof Error) {
-        setError(err.message);
+      const data = response.data;
+      if (data.restored) {
+        setRestored(data.restored);
       } else {
-        setError("Unknown error occurred.");
+        setError("No restored image received.");
       }
+    } catch (err: unknown) {
+      console.error(err);
+      setError("Failed to restore image. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const renderImage = (src: string): React.ReactElement => {
-    const isBase64 = !src.startsWith("http");
-    const imageSrc = isBase64 ? `data:image/png;base64,${src}` : src;
-
+  const renderImage = (src: string): JSX.Element => {
+    const isBase64 = src.startsWith("data:image");
+    const altText = isBase64 ? "Restored Base64 Image" : "Restored URL Image";
     return (
-      <div className="mt-4">
-        <h3 className="text-lg font-semibold mb-2">Restored Image:</h3>
-        <Image
-          src={imageSrc}
-          alt="Restored"
-          width={400}
-          height={400}
-          className="rounded-lg border"
-        />
-      </div>
+      <img
+        src={src}
+        alt={altText}
+        className="mt-4 max-w-sm rounded-lg shadow-md border"
+      />
     );
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center">
-        🪄 Old Photo Restoration
-      </h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
+      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-semibold mb-4 text-center">
+          🪄 Old Photo Restoration
+        </h1>
 
-      <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-md space-y-4">
+        <label className="block mb-2 font-medium text-gray-700">
+          Upload Image:
+        </label>
         <input
           type="file"
           accept="image/*"
           onChange={handleFileChange}
-          className="w-full border p-2 rounded"
+          className="w-full mb-4"
         />
 
-        <div className="text-center text-gray-500">or</div>
+        <div className="text-center text-gray-500 my-2">OR</div>
 
+        <label className="block mb-2 font-medium text-gray-700">
+          Image URL:
+        </label>
         <input
-          type="text"
-          placeholder="Enter image URL"
+          type="url"
           value={imageUrl}
           onChange={handleUrlChange}
-          className="w-full border p-2 rounded"
+          placeholder="https://example.com/photo.jpg"
+          className="w-full border p-2 rounded mb-4"
         />
 
         <button
-          onClick={handleRestore}
+          onClick={handleSubmit}
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
         >
-          {loading ? "Restoring..." : "Restore Photo"}
+          {loading ? "Restoring..." : "Restore Image"}
         </button>
 
-        {error && <p className="text-red-600 mt-2 text-center">{error}</p>}
+        {error && <p className="text-red-600 text-center mt-3">{error}</p>}
 
-        {restored && renderImage(restored)}
+        {restored && (
+          <div className="flex flex-col items-center mt-6">
+            <h2 className="text-lg font-semibold mb-2">Restored Image:</h2>
+            {renderImage(restored)}
+          </div>
+        )}
       </div>
     </div>
   );
