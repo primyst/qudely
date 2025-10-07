@@ -2,16 +2,15 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from gradio_client import Client
 import os
-from dotenv import load_dotenv
-import base64
 import io
+import base64
 from PIL import Image
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 HF_API_KEY = os.getenv("HF_API_KEY")
-
 if not HF_API_KEY or not HF_API_KEY.startswith("hf_"):
     raise ValueError("⚠️ Missing or invalid HF_API_KEY in .env")
 
@@ -19,7 +18,7 @@ if not HF_API_KEY or not HF_API_KEY.startswith("hf_"):
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Use the full Hugging Face Space URL
+# Initialize Gradio client (Hugging Face Space)
 MODEL_URL = "https://modelscope-old-photo-restoration.hf.space"
 client = Client(MODEL_URL, hf_token=HF_API_KEY)
 
@@ -32,13 +31,13 @@ def home():
 @app.route("/restore", methods=["POST"])
 def restore_image():
     try:
-        # ✅ Handle uploaded file or image URL
+        # If the user uploads a file
         if "file" in request.files:
             image_file = request.files["file"]
+            image_bytes = image_file.read()
+            result = client.predict(image_bytes, api_name="/predict")
 
-            # Run model prediction
-            result = client.predict(image_file, api_name="/predict")
-
+        # If the user sends a URL
         else:
             data = request.get_json()
             image_url = data.get("imageUrl")
@@ -48,30 +47,30 @@ def restore_image():
 
             result = client.predict(image_url, api_name="/predict")
 
-        # ✅ Handle output correctly (bytes or list)
-        if isinstance(result, (list, tuple)):
-            output = result[0]
-        else:
-            output = result
+        # The model may return different formats
+        restored_image = None
 
-        # If output is bytes, encode to base64
-        if isinstance(output, bytes):
-            # Convert bytes to base64 string
-            encoded = base64.b64encode(output).decode("utf-8")
-            return jsonify({"restored": f"data:image/png;base64,{encoded}"})
+        # If it's an image (PIL Image or bytes)
+        if isinstance(result, bytes):
+            restored_image = base64.b64encode(result).decode("utf-8")
+        elif isinstance(result, str) and result.startswith("data:image"):
+            # Already base64 encoded
+            restored_image = result.split(",")[1]
+        elif isinstance(result, (list, tuple)) and len(result) > 0:
+            # If it returns a list, convert the first item
+            first_item = result[0]
+            if isinstance(first_item, bytes):
+                restored_image = base64.b64encode(first_item).decode("utf-8")
+            elif isinstance(first_item, Image.Image):
+                buf = io.BytesIO()
+                first_item.save(buf, format="PNG")
+                restored_image = base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        # If output is a PIL image
-        if isinstance(output, Image.Image):
-            buffer = io.BytesIO()
-            output.save(buffer, format="PNG")
-            encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-            return jsonify({"restored": f"data:image/png;base64,{encoded}"})
+        if not restored_image:
+            return jsonify({"error": "Invalid model output"}), 500
 
-        # If output is a string (URL)
-        if isinstance(output, str):
-            return jsonify({"restored": output})
-
-        return jsonify({"error": "Unsupported model output type"}), 500
+        # Return base64 image to frontend
+        return jsonify({"restored": f"data:image/png;base64,{restored_image}"})
 
     except Exception as e:
         print(f"❌ Error: {e}")
