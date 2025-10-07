@@ -1,45 +1,61 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
-import base64
+from gradio_client import Client
 import os
+from dotenv import load_dotenv
+import base64
+
+# Load environment variables
+load_dotenv()
+
+HF_API_KEY = os.getenv("HF_API_KEY")
+if not HF_API_KEY or not HF_API_KEY.startswith("hf_"):
+    raise ValueError("⚠️ Missing or invalid HF_API_KEY in .env")
 
 app = Flask(__name__)
 CORS(app)
 
-MODEL_URL = "https://modelscope-old-photo-restoration.hf.space/api/predict"
+MODEL_URL = "https://modelscope-old-photo-restoration.hf.space"
+client = Client(MODEL_URL, hf_token=HF_API_KEY)
+
+@app.route("/")
+def home():
+    return jsonify({"status": "✅ Qudely backend running!"})
 
 @app.route("/restore", methods=["POST"])
-def restore_photo():
+def restore_image():
     try:
-        # Get uploaded image
-        image = request.files["image"]
-        if not image:
-            return jsonify({"error": "No image uploaded"}), 400
+        # If a file is uploaded
+        if "file" in request.files:
+            image_file = request.files["file"]
+            image_bytes = image_file.read()
+            # The Gradio client can accept raw bytes for file inputs
+            result = client.predict(image_bytes, api_name="/predict")
+        else:
+            data = request.get_json(force=True)
+            image_url = data.get("imageUrl")
+            if not image_url:
+                return jsonify({"error": "Missing image or URL"}), 400
+            result = client.predict(image_url, api_name="/predict")
 
-        # Send image to Hugging Face ModelScope API
-        files = {"image": (image.filename, image.stream, image.mimetype)}
-        response = requests.post(MODEL_URL, files=files)
+        # Process the result
+        if isinstance(result, (list, tuple)) and len(result) > 0:
+            restored = result[0]
+        elif isinstance(result, str):
+            restored = result
+        else:
+            return jsonify({"error": "Invalid model response"}), 500
 
-        # Check model response
-        if response.status_code != 200:
-            return jsonify({"error": "Model API failed", "details": response.text}), 500
+        # If the restored is bytes (rare), convert to base64 string
+        if isinstance(restored, (bytes, bytearray)):
+            restored = base64.b64encode(restored).decode("utf-8")
 
-        result = response.json()
-
-        # If result includes an image (in bytes), encode it safely to base64
-        if "data" in result:
-            output_image = result["data"][0]["image"]
-            if isinstance(output_image, bytes):
-                output_image = base64.b64encode(output_image).decode("utf-8")
-
-            return jsonify({"image": output_image}), 200
-
-        return jsonify({"error": "Unexpected response structure", "raw": result}), 500
+        return jsonify({"restored": restored})
 
     except Exception as e:
+        print(f"❌ Error: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
