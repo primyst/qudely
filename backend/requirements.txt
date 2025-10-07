@@ -4,3 +4,4 @@ python-dotenv
 gradio_client
 gunicorn
 requests
+pillow
