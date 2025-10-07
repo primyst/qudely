@@ -77,7 +77,7 @@ export default function RestorePage() {
     }
   };
 
-  const renderImage = (src: string): JSX.Element => {
+  const renderImage = (src: string): React.ReactElement => {
     const isBase64 = !src.startsWith("http");
     const imageSrc = isBase64 ? `data:image/png;base64,${src}` : src;
 
