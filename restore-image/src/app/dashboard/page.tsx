@@ -1,231 +1,82 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabaseClient";
-import toast, { Toaster } from "react-hot-toast";
+import React, { useState } from "react";
+import Image from "next/image";
+import axios from "axios";
 
-interface Profile {
-  id: string;
-  email: string;
-  trial_count: number;
-  is_premium: boolean;
-}
-
-interface HistoryItem {
-  id: string;
-  user_id: string;
-  original: string;
-  restored: string;
-  created_at: string;
-}
-
-interface RestoreResponse {
-  restored?: string;
-  error?: string;
-}
-
-export default function DashboardPage() {
-  const supabase = createClient();
-  const router = useRouter();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+export default function RestorePage() {
+  const [imageUrl, setImageUrl] = useState("");
+  const [restoredImage, setRestoredImage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const TRIAL_LIMIT = 2;
-
-  // Fetch profile and history
-  useEffect(() => {
-    const fetchData = async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) return router.push("/auth/login");
-
-      const userId = authData.user.id;
-
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      if (profileError || !profileData) {
-        toast.error("Failed to fetch profile");
-        return;
-      }
-      setProfile(profileData as Profile);
-
-      const { data: historyData } = await supabase
-        .from("history")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
-
-      setHistory((historyData || []) as HistoryItem[]);
-    };
-
-    fetchData();
-  }, []);
-
-  // Handle image upload and restoration
-  const handleProcessImage = () => {
-    if (!profile) return;
-    if (!profile.is_premium && profile.trial_count >= TRIAL_LIMIT) {
-      return toast.error("Trial limit reached! Please upgrade.");
+  const handleRestore = async () => {
+    if (!imageUrl) {
+      setError("Please enter an image URL");
+      return;
     }
 
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
+    setError("");
+    setLoading(true);
+    setRestoredImage("");
 
-    input.onchange = async (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (!target.files || target.files.length === 0) return;
+    try {
+      const response = await axios.post("https://qudely.onrender.com/restore", {
+        imageUrl,
+      });
 
-      const file = target.files[0];
-      setLoading(true);
-      toast.loading("Uploading image...");
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("images")
-        .upload(`uploads/${crypto.randomUUID()}-${file.name}`, file, { upsert: true });
-
-      if (uploadError || !uploadData) {
-        toast.dismiss();
-        setLoading(false);
-        return toast.error(`Upload failed: ${uploadError.message}`);
+      if (response.data.restored) {
+        setRestoredImage(response.data.restored);
+      } else {
+        setError("No restored image returned.");
       }
-
-      const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/images/${uploadData.path}`;
-      toast.loading("Restoring image...");
-
-      try {
-        const res = await fetch("/api/restore", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: profile.id, imageUrl }),
-        });
-
-        const result: RestoreResponse = await res.json();
-        toast.dismiss();
-        setLoading(false);
-
-        if (result.error) return toast.error(result.error);
-        if (!result.restored) return toast.error("No restored image returned");
-
-        if (!profile.is_premium) {
-          setProfile({ ...profile, trial_count: profile.trial_count + 1 });
-        }
-
-        setHistory((prev) => [
-          {
-            id: crypto.randomUUID(),
-            user_id: profile.id,
-            original: imageUrl,
-            restored: result.restored!,
-            created_at: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
-
-        toast.success("Image restored successfully!");
-      } catch (err) {
-        toast.dismiss();
-        setLoading(false);
-        toast.error("Failed to restore image. Try again.");
-      }
-    };
-
-    input.click();
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to restore image.");
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const handleUpgrade = async () => {
-    if (!profile) return;
-
-    const { data: updatedProfile, error } = await supabase
-      .from("profiles")
-      .update({ is_premium: true })
-      .eq("id", profile.id)
-      .select()
-      .single();
-
-    if (error || !updatedProfile) return toast.error("Upgrade failed.");
-
-    setProfile(updatedProfile as Profile);
-    toast.success("Upgraded to premium! 🎉");
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/auth/login");
-  };
-
-  if (!profile) return <p className="p-6 text-gray-500">Loading...</p>;
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
-      <Toaster position="top-right" />
+    <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
+      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
+        <h1 className="text-xl font-bold mb-4 text-center">
+          🪄 Old Photo Restoration
+        </h1>
 
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Welcome, {profile.email}</h1>
-          <p className="text-gray-600">
-            Trial used: {profile.trial_count} / {TRIAL_LIMIT} | Status:{" "}
-            {profile.is_premium ? "Premium 🏅" : "Free"}
-          </p>
-        </div>
+        <input
+          type="text"
+          placeholder="Enter Image URL..."
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          className="w-full border border-gray-300 rounded-md p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
 
         <button
-          onClick={handleLogout}
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          onClick={handleRestore}
+          disabled={loading}
+          className="w-full bg-blue-600 text-white rounded-md p-2 hover:bg-blue-700 transition disabled:bg-gray-400"
         >
-          Logout
+          {loading ? "Restoring..." : "Restore Image"}
         </button>
-      </div>
 
-      <button
-        disabled={loading}
-        onClick={handleProcessImage}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-blue-300"
-      >
-        {loading ? "Processing..." : "Upload & Restore Image"}
-      </button>
+        {error && <p className="text-red-500 mt-3 text-center">{error}</p>}
 
-      {!profile.is_premium && profile.trial_count >= TRIAL_LIMIT && (
-        <button
-          onClick={handleUpgrade}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Upgrade to Premium
-        </button>
-      )}
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-3">History</h2>
-
-        {history.length === 0 ? (
-          <p className="text-gray-500">No images processed yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {history.map((h) => (
-              <div key={h.id} className="bg-white p-3 rounded-lg shadow space-y-2">
-                <img
-                  src={h.original}
-                  alt="Original"
-                  className="w-full h-40 object-cover rounded border"
-                />
-                <img
-                  src={h.restored}
-                  alt="Restored"
-                  className="w-full h-40 object-cover rounded border"
-                />
-                <p className="text-xs text-gray-500">
-                  {new Date(h.created_at).toLocaleString()}
-                </p>
-              </div>
-            ))}
+        {restoredImage && (
+          <div className="mt-6 text-center">
+            <h2 className="font-semibold mb-2">Restored Image</h2>
+            <div className="relative w-full h-64">
+              <Image
+                src={restoredImage}
+                alt="Restored"
+                fill
+                className="object-contain rounded-md border"
+              />
+            </div>
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }
