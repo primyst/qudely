@@ -1,108 +1,99 @@
 "use client";
 
 import React, { useState, ChangeEvent } from "react";
-import axios from "axios";
-import Image from "next/image";
-import { Loader2, Upload, RefreshCw } from "lucide-react";
+import axios, { AxiosResponse } from "axios";
 
-export default function RestorePage() {
+interface RestoreResponse {
+  restored?: string;
+  error?: string;
+}
+
+export default function RestorePage(): JSX.Element {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [restoredImage, setRestoredImage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setPreview(URL.createObjectURL(selectedFile));
-      setRestoredImage(null);
-    }
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const f = e.target.files?.[0] ?? null;
+    setFile(f);
+    setPreview(f ? URL.createObjectURL(f) : null);
+    setRestoredImage(null);
+    setError("");
   };
 
   const handleRestore = async (): Promise<void> => {
     if (!file) {
-      alert("Please upload an image first!");
+      setError("Please upload a file first.");
       return;
     }
-
-    const formData = new FormData();
-    formData.append("file", file); // Must match backend key
-
     setLoading(true);
+    setError("");
+    setRestoredImage(null);
+
+    const form = new FormData();
+    form.append("file", file); // backend expects "file"
+
     try {
-      const res = await axios.post(
+      const res: AxiosResponse<RestoreResponse> = await axios.post(
         "https://qudely.onrender.com/restore",
-        formData,
+        form,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      const restored = res.data.restored as string;
-      setRestoredImage(restored);
+      if (res.data.error) {
+        setError(res.data.error);
+      } else if (res.data.restored) {
+        setRestoredImage(res.data.restored);
+      } else {
+        setError("Unexpected response from server");
+      }
     } catch (err: unknown) {
-      console.error(err);
-      alert("Something went wrong restoring the image.");
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.error ?? err.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Unknown error");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const renderImage = (src: string): React.ReactElement => (
-    <div className="relative w-full h-64 sm:h-80 md:h-96 rounded-xl overflow-hidden shadow-lg border border-gray-200 bg-gray-50">
-      <Image
-        src={src}
-        alt="Preview"
-        fill
-        className="object-contain p-2"
-        sizes="(max-width: 768px) 100vw, 50vw"
-      />
-    </div>
-  );
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white p-6">
-      <h1 className="text-2xl sm:text-3xl font-semibold text-blue-700 mb-6">
-        🦷 AI Image Restoration
-      </h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-2xl bg-white p-6 rounded shadow">
+        <h1 className="text-2xl font-bold mb-4">Qudely — Restore & Colorize</h1>
 
-      <div className="flex flex-col items-center gap-4">
-        <label className="cursor-pointer flex flex-col items-center justify-center w-60 h-36 border-2 border-dashed border-blue-400 rounded-lg bg-blue-50 hover:bg-blue-100 transition">
-          <Upload className="w-8 h-8 text-blue-500 mb-2" />
-          <span className="text-sm text-blue-600 font-medium">
-            Click to upload
-          </span>
-          <input type="file" accept="image/*" hidden onChange={handleFileChange} />
-        </label>
+        <input type="file" accept="image/*" onChange={handleFileChange} />
 
         {preview && (
-          <div className="flex flex-col md:flex-row items-center gap-6 mt-4">
-            <div>
-              <h2 className="text-sm font-medium text-gray-600 mb-2">Original</h2>
-              {renderImage(preview)}
-            </div>
-
-            {loading ? (
-              <div className="flex flex-col items-center justify-center text-blue-600">
-                <Loader2 className="w-8 h-8 animate-spin" />
-                <p className="text-sm mt-2">Restoring...</p>
-              </div>
-            ) : restoredImage ? (
-              <div>
-                <h2 className="text-sm font-medium text-gray-600 mb-2">Restored</h2>
-                {renderImage(restoredImage)}
-              </div>
-            ) : null}
+          <div className="mt-4">
+            <h3 className="font-medium">Original</h3>
+            <img src={preview} alt="original" className="max-w-full rounded border mt-2" />
           </div>
         )}
 
-        <button
-          onClick={handleRestore}
-          disabled={!file || loading}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 mt-6 rounded-md font-medium shadow-md disabled:opacity-50 transition"
-        >
-          <RefreshCw className="w-5 h-5" />
-          {loading ? "Restoring..." : "Restore Image"}
-        </button>
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={handleRestore}
+            disabled={!file || loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-60"
+          >
+            {loading ? "Restoring..." : "Restore"}
+          </button>
+        </div>
+
+        {error && <p className="mt-3 text-red-600">{error}</p>}
+
+        {restoredImage && (
+          <div className="mt-6">
+            <h3 className="font-medium">Restored / Colorized</h3>
+            <img src={restoredImage} alt="restored" className="max-w-full rounded border mt-2" />
+          </div>
+        )}
       </div>
     </div>
   );
