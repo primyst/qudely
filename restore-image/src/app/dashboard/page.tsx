@@ -7,7 +7,7 @@ interface RestoreResponse {
   restored: string;
 }
 
-export default function RestorePage(): JSX.Element {
+const RestorePage = (): React.ReactElement => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [restored, setRestored] = useState<string>("");
@@ -44,9 +44,7 @@ export default function RestorePage(): JSX.Element {
         response = await axios.post<RestoreResponse>(
           "https://qudely.onrender.com/restore",
           formData,
-          {
-            headers: { "Content-Type": "multipart/form-data" },
-          }
+          { headers: { "Content-Type": "multipart/form-data" } }
         );
       } else if (imageUrl) {
         response = await axios.post<RestoreResponse>(
@@ -73,7 +71,7 @@ export default function RestorePage(): JSX.Element {
     }
   };
 
-  const renderImage = (src: string): JSX.Element => {
+  const renderImage = (src: string): React.ReactElement => {
     const isBase64 = src.startsWith("data:image");
     const altText = isBase64 ? "Restored Base64 Image" : "Restored URL Image";
     return (
@@ -134,4 +132,6 @@ export default function RestorePage(): JSX.Element {
       </div>
     </div>
   );
-}
+};
+
+export default RestorePage;
