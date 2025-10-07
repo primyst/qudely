@@ -12,11 +12,10 @@ HF_API_KEY = os.getenv("HF_API_KEY")
 if not HF_API_KEY or not HF_API_KEY.startswith("hf_"):
     raise ValueError("⚠️ Missing or invalid HF_API_KEY in .env")
 
-# Initialize Flask app
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Use full Hugging Face Space URL (not just model ID)
+# Use full Hugging Face Space URL
 MODEL_URL = "https://modelscope-old-photo-restoration.hf.space"
 client = Client(MODEL_URL, hf_token=HF_API_KEY)
 
@@ -27,18 +26,22 @@ def home():
 @app.route("/restore", methods=["POST"])
 def restore_image():
     try:
-        # ✅ Handle both file uploads and direct image URLs
+        # Case 1: File upload
         if "file" in request.files:
             image_file = request.files["file"]
-            result = client.predict(image_file, api_name="/predict")
+            # Convert to bytes
+            image_bytes = image_file.read()
+            result = client.predict(image_bytes, api_name="/predict")
+
+        # Case 2: URL passed
         else:
-            data = request.get_json()
+            data = request.get_json(force=True)
             image_url = data.get("imageUrl")
             if not image_url:
                 return jsonify({"error": "Missing image or URL"}), 400
             result = client.predict(image_url, api_name="/predict")
 
-        # ✅ Ensure model returns a valid response
+        # Validate model response
         if isinstance(result, (list, tuple)) and len(result) > 0:
             restored_image_url = result[0]
         elif isinstance(result, str):
@@ -51,7 +54,6 @@ def restore_image():
     except Exception as e:
         print(f"❌ Error: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
