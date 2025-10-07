@@ -16,7 +16,7 @@ if not HF_API_KEY or not HF_API_KEY.startswith("hf_"):
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Use full Hugging Face Space URL instead of model ID
+# ✅ Use full Hugging Face Space URL (not just model ID)
 MODEL_URL = "https://modelscope-old-photo-restoration.hf.space"
 client = Client(MODEL_URL, hf_token=HF_API_KEY)
 
@@ -27,16 +27,18 @@ def home():
 @app.route("/restore", methods=["POST"])
 def restore_image():
     try:
-        data = request.get_json()
-        image_url = data.get("imageUrl")
+        # ✅ Handle both file uploads and direct image URLs
+        if "file" in request.files:
+            image_file = request.files["file"]
+            result = client.predict(image_file, api_name="/predict")
+        else:
+            data = request.get_json()
+            image_url = data.get("imageUrl")
+            if not image_url:
+                return jsonify({"error": "Missing image or URL"}), 400
+            result = client.predict(image_url, api_name="/predict")
 
-        if not image_url:
-            return jsonify({"error": "Missing imageUrl"}), 400
-
-        # 🔥 Run prediction (Gradio Space)
-        result = client.predict(image_url, api_name="/predict")
-
-        # result might be a list or tuple depending on the Space
+        # ✅ Ensure model returns a valid response
         if isinstance(result, (list, tuple)) and len(result) > 0:
             restored_image_url = result[0]
         elif isinstance(result, str):
