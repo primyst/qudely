@@ -7,7 +7,7 @@ interface RestoreResponse {
   restored: string;
 }
 
-export default function RestorePage(): React.Element {
+export default function RestorePage(): JSX.Element {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [restored, setRestored] = useState<string>("");
