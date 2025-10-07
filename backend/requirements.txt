@@ -1,7 +1,7 @@
 flask
 flask-cors
-python-dotenv
-gradio_client
-gunicorn
 requests
+numpy
+opencv-python-headless
 pillow
+gunicorn
