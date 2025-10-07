@@ -8,7 +8,7 @@ interface RestoreResponse {
   error?: string;
 }
 
-export default function RestorePage(): JSX.Element {
+export default function RestorePage(): React.ReactElement {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [restoredImage, setRestoredImage] = useState<string | null>(null);
