@@ -89,7 +89,7 @@ export default function RestorePage(): React.ReactElement {
     }
   };
 
-  const renderImageBox = (src: string | null, label: string): JSX.Element | null => {
+  const renderImageBox = (src: string | null, label: string): React.ReactElement | null => {
     if (!src) return null;
     return (
       <div className="w-full max-w-[420px]">
