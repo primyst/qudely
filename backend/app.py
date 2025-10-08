@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -12,147 +11,149 @@ import cv2
 app = Flask(__name__)
 CORS(app)
 
-# Where we store downloaded DNN files
+# ✅ Cache-friendly model storage for Render (persists in /tmp)
 MODEL_DIR = "/tmp/colorize_models"
 PROTO_PATH = os.path.join(MODEL_DIR, "colorization_deploy_v2.prototxt")
 MODEL_PATH = os.path.join(MODEL_DIR, "colorization_release_v2.caffemodel")
 PTS_PATH = os.path.join(MODEL_DIR, "pts_in_hull.npy")
 
-# URLs (raw) for model assets (Rich Zhang colorization)
+# Model asset URLs (Rich Zhang’s pretrained OpenCV colorization)
 PROTO_URL = "https://raw.githubusercontent.com/richzhang/colorization/master/models/colorization_deploy_v2.prototxt"
-MODEL_URL = "https://raw.githubusercontent.com/richzhang/colorization/master/models/colorization_release_v2.caffemodel"
+MODEL_URL = "https://huggingface.co/spaces/akhaliq/colorization/resolve/main/colorization_release_v2.caffemodel"
 PTS_URL = "https://raw.githubusercontent.com/richzhang/colorization/master/resources/pts_in_hull.npy"
 
+
+# ---------- UTILITIES ----------
 def ensure_models():
+    """Ensure model files exist; download once if missing."""
     os.makedirs(MODEL_DIR, exist_ok=True)
-    # Download files if missing
+
     if not os.path.exists(PROTO_PATH):
-        print("Downloading prototxt...")
+        print("📥 Downloading prototxt...")
         r = requests.get(PROTO_URL, timeout=60)
         r.raise_for_status()
         with open(PROTO_PATH, "wb") as f:
             f.write(r.content)
+
     if not os.path.exists(MODEL_PATH):
-        print("Downloading caffemodel (this is large, ~160MB)...")
+        print("📥 Downloading colorization model (~160MB)...")
         r = requests.get(MODEL_URL, stream=True, timeout=300)
         r.raise_for_status()
         with open(MODEL_PATH, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
+
     if not os.path.exists(PTS_PATH):
-        print("Downloading pts_in_hull.npy...")
+        print("📥 Downloading pts_in_hull.npy...")
         r = requests.get(PTS_URL, timeout=60)
         r.raise_for_status()
         with open(PTS_PATH, "wb") as f:
             f.write(r.content)
 
+
 def read_image_from_file_storage(fs):
-    # fs is werkzeug FileStorage
     in_bytes = fs.read()
     arr = np.frombuffer(in_bytes, np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     return img
 
+
+# ---------- BASIC RESTORATION ----------
 def restore_basic(img_bgr: np.ndarray) -> np.ndarray:
-    """
-    Simple restoration:
-    - Denoise with bilateral filter
-    - Detect thin dark scratches via morphological operations on grayscale edges
-    - Inpaint using Telea
-    Return restored BGR image.
-    """
+    """Remove scratches, denoise, and slightly enhance."""
     img = img_bgr.copy()
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # Denoise
+
+    # Denoise using bilateral filter (retains edges)
     den = cv2.bilateralFilter(img, d=7, sigmaColor=75, sigmaSpace=75)
 
-    # Edge detection for possible scratches
+    # Detect small dark scratches
     edges = cv2.Canny(gray, 50, 150)
-    # Dilate edges to create mask
     kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.dilate(edges, kernel, iterations=2)
+    mask = cv2.dilate(edges, kernel, iterations=1)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
-    # Morphological closing to connect broken lines
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
-
-    # Inpaint
+    # Inpaint to fill thin scratch gaps
     inpainted = cv2.inpaint(den, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
 
-    return inpainted
+    # Light detail enhancement for clarity
+    enhanced = cv2.detailEnhance(inpainted, sigma_s=10, sigma_r=0.15)
 
+    return enhanced
+
+
+# ---------- ENHANCED COLORIZATION ----------
 def colorize_opencv(img_bgr: np.ndarray) -> np.ndarray:
-    """
-    Colorize using Rich Zhang colorization model with OpenCV DNN.
-    Input: BGR image (uint8)
-    Output: colorized BGR (uint8)
-    """
+    """Enhanced OpenCV colorization (Rich Zhang) with color correction."""
     ensure_models()
     net = cv2.dnn.readNetFromCaffe(PROTO_PATH, MODEL_PATH)
-    pts = np.load(PTS_PATH)  # (313,2)
+    pts = np.load(PTS_PATH)
 
-    # populate cluster centers as 1x1 conv layer
+    # Register cluster centers
     class8 = net.getLayerId("class8_ab")
     conv8 = net.getLayerId("conv8_313_rh")
-
     pts = pts.transpose().reshape(2, 313, 1, 1)
     net.getLayer(class8).blobs = [pts.astype(np.float32)]
-    net.getLayer(conv8).blobs = [np.full((1,313,1,1), 2.606, dtype=np.float32)]
+    net.getLayer(conv8).blobs = [np.full((1, 313, 1, 1), 2.606, dtype=np.float32)]
 
-    # prepare input
-    h_in = 224
-    w_in = 224
+    # --- Prepare input ---
+    h_in, w_in = 224, 224
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-    img_norm = img_rgb.astype("float32") / 255.0
-    img_lab = cv2.cvtColor((img_norm*255).astype("uint8"), cv2.COLOR_RGB2LAB).astype("float32")
-    l = img_lab[:,:,0]
-    L = cv2.resize(l, (w_in, h_in))
-    L -= 50
+    img_lab = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2Lab)
+    l_channel = img_lab[:, :, 0]
+    L = cv2.resize(l_channel, (w_in, h_in))
+    L -= 50  # normalize around mean
 
     net.setInput(cv2.dnn.blobFromImage(L))
-    ab_dec = net.forward()[0,:,:,:].transpose((1,2,0))  # HxWx2
+    ab_dec = net.forward()[0].transpose((1, 2, 0))
     ab_dec_us = cv2.resize(ab_dec, (img_bgr.shape[1], img_bgr.shape[0]))
 
-    L_orig = img_lab[:,:,0]
-    lab_out = np.zeros((img_bgr.shape[0], img_bgr.shape[1], 3), dtype=np.float32)
-    lab_out[:,:,0] = L_orig
-    lab_out[:,:,1:] = ab_dec_us
-    img_bgr_out = cv2.cvtColor(lab_out.astype("uint8"), cv2.COLOR_LAB2BGR)
-    # ensure valid range
-    img_bgr_out = np.clip(img_bgr_out, 0, 255).astype("uint8")
+    # Merge channels back
+    lab_out = np.zeros_like(img_lab, dtype=np.float32)
+    lab_out[:, :, 0] = l_channel
+    lab_out[:, :, 1:] = ab_dec_us
+    img_bgr_out = cv2.cvtColor(lab_out.astype(np.uint8), cv2.COLOR_Lab2BGR)
+
+    # --- Post enhancements ---
+    hsv = cv2.cvtColor(img_bgr_out, cv2.COLOR_BGR2HSV).astype(np.float32)
+    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * 1.5, 0, 255)  # boost saturation
+    hsv[:, :, 2] = np.clip(hsv[:, :, 2] * 1.15, 0, 255)  # slight brightness lift
+    img_bgr_out = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+
+    # Blend edges from original to sharpen slightly
+    edges = cv2.Canny(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY), 60, 150)
+    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+    img_bgr_out = cv2.addWeighted(img_bgr_out, 0.92, edges_colored, 0.08, 0)
+
     return img_bgr_out
 
+
+# ---------- OUTPUT UTILITY ----------
 def bgr_to_datauri(img_bgr: np.ndarray) -> str:
     _, buf = cv2.imencode(".png", img_bgr)
     b64 = base64.b64encode(buf.tobytes()).decode("utf-8")
     return f"data:image/png;base64,{b64}"
 
+
+# ---------- ROUTES ----------
 @app.route("/")
 def home():
-    return jsonify({"status": "ok", "note": "Qudely local restore service (OpenCV)"}), 200
+    return jsonify({"status": "ok", "service": "Qudely AI Restore (Upgraded)"}), 200
+
 
 @app.route("/restore", methods=["POST"])
 def restore_route():
-    """
-    Accepts:
-      - multipart/form-data with key "file" containing an image (preferred)
-      - or JSON {"imageUrl": "..."} where we fetch the image and process it
-    Returns:
-      { "restored": "data:image/png;base64,..." }
-    """
     try:
-        # 1) Accept file upload
         if "file" in request.files:
             fs = request.files["file"]
             img = read_image_from_file_storage(fs)
             if img is None:
                 return jsonify({"error": "Could not decode uploaded image"}), 400
-
-        # 2) Or accept imageUrl
         else:
             data = request.get_json(force=True, silent=True)
             if not data or "imageUrl" not in data:
-                return jsonify({"error": "Missing file upload or imageUrl"}), 400
+                return jsonify({"error": "Missing file or imageUrl"}), 400
             image_url = data["imageUrl"]
             r = requests.get(image_url, timeout=30)
             r.raise_for_status()
@@ -161,15 +162,12 @@ def restore_route():
             if img is None:
                 return jsonify({"error": "Could not fetch/parse image URL"}), 400
 
-        # 3) Simple restoration
         restored = restore_basic(img)
 
-        # 4) Colorize (if grayscale or to enhance)
         try:
             colorized = colorize_opencv(restored)
         except Exception as e:
-            # If colorization fails, fallback to restored image
-            print("Colorize error:", e)
+            print("Colorization error:", e)
             colorized = restored
 
         datauri = bgr_to_datauri(colorized)
@@ -181,5 +179,6 @@ def restore_route():
         print("Server error:", e)
         return jsonify({"error": str(e)}), 500
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)),debug=False)
