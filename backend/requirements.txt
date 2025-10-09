@@ -1,7 +1,9 @@
-flask
-flask-cors
-requests
-numpy
+gradio
 opencv-python-headless
-pillow
+numpy
+Pillow
+requests
+gfpgan
+facexlib
+torch
 gunicorn
