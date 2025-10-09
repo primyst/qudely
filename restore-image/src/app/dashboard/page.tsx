@@ -10,19 +10,24 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0] ?? null;
-    setFile(selected);
+    const selectedFile = e.target.files?.[0] ?? null;
+    setFile(selectedFile);
     setRestored(null);
     setError(null);
 
-    if (selected) {
+    if (selectedFile) {
       const reader = new FileReader();
       reader.onload = () => setPreview(reader.result as string);
-      reader.readAsDataURL(selected);
+      reader.readAsDataURL(selectedFile);
     } else {
       setPreview(null);
     }
   };
+
+  interface RestoreResponse {
+    restored?: string;
+    error?: string;
+  }
 
   const handleUpload = async () => {
     if (!file) return;
@@ -38,15 +43,19 @@ export default function HomePage() {
         body: formData,
       });
 
-      const data = await res.json();
+      const data: RestoreResponse = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to restore image");
+        setError(data.error ?? "Failed to restore image");
       } else {
-        setRestored(data.restored);
+        setRestored(data.restored ?? null);
       }
     } catch (err) {
-      setError("Server error: " + (err as any).message);
+      if (err instanceof Error) {
+        setError("Server error: " + err.message);
+      } else {
+        setError("Unknown server error");
+      }
     } finally {
       setLoading(false);
     }
