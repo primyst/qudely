@@ -7,13 +7,21 @@ import toast, { Toaster } from "react-hot-toast";
 export default function DashboardPage() {
   const [trialCount, setTrialCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  // 1️⃣ Fetch user and trial count
+  // ✅ 1. Fetch current user and trial count
   const fetchTrialCount = async () => {
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
-    if (!user) return;
+
+    if (userError || !user) {
+      toast.error("Please log in first.");
+      return;
+    }
+
+    setUserEmail(user.email ?? null);
 
     const { data, error } = await supabase
       .from("profiles")
@@ -23,7 +31,7 @@ export default function DashboardPage() {
 
     if (error) {
       console.error(error);
-      toast.error("Failed to fetch trial count");
+      toast.error("Failed to load profile info.");
     } else {
       setTrialCount(data.trial_count);
     }
@@ -33,66 +41,92 @@ export default function DashboardPage() {
     fetchTrialCount();
   }, []);
 
-  // 2️⃣ Handle image restoration
+  // ✅ 2. Handle restore click
   const handleRestore = async () => {
     setLoading(true);
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
     if (!user) {
-      toast.error("Please login first");
+      toast.error("Please login to continue.");
       setLoading(false);
       return;
     }
 
+    // Check available trials
     if (!trialCount || trialCount <= 0) {
-      toast.error("Your free trials are over. Please upgrade to premium.");
+      toast.error("Your free trials are over. Upgrade to premium to continue.");
       setLoading(false);
       return;
     }
 
     try {
-      // Call your AI restoration API here
-      // Example: await fetch("/api/restore", { method: "POST", body: ... });
+      // 🧠 Here’s where your AI restore API will be called
+      // const response = await fetch("/api/restore", { method: "POST", body: ... });
+      // const data = await response.json();
 
-      // 3️⃣ Decrement trial count automatically
+      // Simulate restoration delay
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // ✅ Decrement trial count
       const { error } = await supabase.rpc("decrement_trial_count", {
         user_id: user.id,
       });
 
       if (error) {
         console.error(error);
-        toast.error("Failed to decrement trial count");
+        toast.error("Error updating trial count.");
       } else {
-        setTrialCount(trialCount - 1);
-        toast.success("Restoration complete! Trial used.");
+        setTrialCount((prev) => (prev !== null ? prev - 1 : 0));
+        toast.success("Restoration successful! Trial used.");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Restoration failed. Try again.");
+      toast.error("Something went wrong during restoration.");
     }
 
     setLoading(false);
   };
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-r from-green-100 to-green-200 flex flex-col items-center justify-center">
       <Toaster position="top-right" />
-      <h2 className="text-xl font-semibold">Welcome to your dashboard</h2>
-      {trialCount !== null && (
-        <p className="mt-2 text-gray-600">
-          🧩 You have <span className="font-bold">{trialCount}</span> free
-          trial{trialCount !== 1 && "s"} left.
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-[90%] max-w-md text-center">
+        <h1 className="text-3xl font-extrabold text-green-700">Qudely Dashboard</h1>
+        <p className="text-gray-500 mt-2">
+          Welcome{userEmail ? `, ${userEmail}` : ""} 👋
         </p>
-      )}
 
-      <button
-        onClick={handleRestore}
-        disabled={loading || (trialCount !== null && trialCount <= 0)}
-        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-      >
-        {loading ? "Restoring..." : "Restore Image"}
-      </button>
+        {trialCount !== null ? (
+          <p className="mt-4 text-gray-700">
+            🧩 You have{" "}
+            <span className="font-bold text-green-600">{trialCount}</span> free
+            trial{trialCount !== 1 && "s"} remaining.
+          </p>
+        ) : (
+          <p className="mt-4 text-gray-500">Loading your trial info...</p>
+        )}
+
+        <button
+          onClick={handleRestore}
+          disabled={loading || (trialCount !== null && trialCount <= 0)}
+          className={`mt-6 w-full py-3 rounded-lg font-semibold text-white transition ${
+            loading
+              ? "bg-green-400 cursor-not-allowed"
+              : trialCount && trialCount > 0
+              ? "bg-green-600 hover:bg-green-700"
+              : "bg-gray-400 cursor-not-allowed"
+          }`}
+        >
+          {loading ? "Restoring..." : "Restore an Image"}
+        </button>
+
+        <p className="text-sm text-gray-400 mt-6">
+          Each restoration uses one free trial.
+        </p>
+      </div>
     </div>
   );
 }
