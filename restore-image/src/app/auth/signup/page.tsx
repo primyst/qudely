@@ -26,11 +26,13 @@ export default function SignupPage() {
 
     // Create profile
     if (data.user) {
-      await supabase.from("profiles").insert({
-        id: data.user.id,
-        email: data.user.email,
-      });
-    }
+  await supabase.from("profiles").insert({
+    id: data.user.id,
+    email: data.user.email,
+    trial_count: 2, // give 2 free trials
+    is_premium: false,
+  });
+}
 
     toast.success("Account created! Redirecting, check your email to confirm your account...");
     router.push("/dashboard");
