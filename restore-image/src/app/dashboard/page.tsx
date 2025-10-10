@@ -2,68 +2,46 @@
 
 import { useState } from "react";
 
-export default function HomePage() {
+export default function DeOldifyPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [restored, setRestored] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0] ?? null;
-    setFile(selectedFile);
-    setRestored(null);
-    setError(null);
-
-    if (selectedFile) {
-      const reader = new FileReader();
-      reader.onload = () => setPreview(reader.result as string);
-      reader.readAsDataURL(selectedFile);
-    } else {
-      setPreview(null);
+    const selected = e.target.files?.[0] || null;
+    setFile(selected);
+    if (selected) {
+      setPreview(URL.createObjectURL(selected));
     }
   };
 
-  interface RestoreResponse {
-    restored?: string;
-    error?: string;
-  }
-
-  const handleUpload = async () => {
+  const handleRestore = async () => {
     if (!file) return;
     setLoading(true);
-    setError(null);
+    const formData = new FormData();
+    formData.append("data", file);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("https://qudely.onrender.com/restore", {
+      const response = await fetch("https://primyst-primyst-deoldify.hf.space/run/predict", {
         method: "POST",
         body: formData,
       });
 
-      const data: RestoreResponse = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Failed to restore image");
-      } else {
-        setRestored(data.restored ?? null);
-      }
+      const resultJson = await response.json();
+      const output = resultJson.data?.[0];
+      if (output) setResult(output);
     } catch (err) {
-      if (err instanceof Error) {
-        setError("Server error: " + err.message);
-      } else {
-        setError("Unknown server error");
-      }
+      console.error("Error:", err);
+      alert("Failed to restore image. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold mb-6">Old Photo Restorer</h1>
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+      <h1 className="text-2xl font-semibold mb-4">AI Image Restoration (DeOldify)</h1>
 
       <input
         type="file"
@@ -73,33 +51,28 @@ export default function HomePage() {
       />
 
       {preview && (
-        <div className="mb-4">
-          <p className="font-semibold mb-2">Original:</p>
-          <img
-            src={preview}
-            alt="preview"
-            className="max-w-xs rounded-md shadow"
-          />
-        </div>
+        <img
+          src={preview}
+          alt="preview"
+          className="w-64 h-auto mb-4 rounded shadow-md"
+        />
       )}
 
       <button
-        onClick={handleUpload}
-        className="px-6 py-2 bg-blue-600 text-white rounded-md shadow hover:bg-blue-700 disabled:bg-gray-400"
+        onClick={handleRestore}
         disabled={!file || loading}
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
       >
-        {loading ? "Restoring..." : "Restore & Colorize"}
+        {loading ? "Restoring..." : "Restore Image"}
       </button>
 
-      {error && <p className="text-red-500 mt-4">{error}</p>}
-
-      {restored && (
+      {result && (
         <div className="mt-6">
-          <p className="font-semibold mb-2">Restored:</p>
+          <h2 className="text-lg font-medium mb-2">Restored Image:</h2>
           <img
-            src={restored}
+            src={result}
             alt="restored"
-            className="max-w-xs rounded-md shadow"
+            className="w-64 h-auto rounded shadow-lg"
           />
         </div>
       )}
