@@ -11,7 +11,7 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN!,
 });
 
-// Extract output URL
+// Helper function to extract output URL from Replicate response
 function extractUrl(result: unknown): string {
   if (typeof result === "string") return result;
   if (Array.isArray(result)) return result[0] ?? "";
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = createClient();
 
-    // Get user profile
+    // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("trial_count, is_premium")
@@ -40,39 +40,39 @@ export async function POST(req: NextRequest) {
     if (profileError || !profile)
       return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // Check trial limit
-    if (!profile.is_premium && profile.trial_count >= 2)
+    // Check if user has trials left (if not premium)
+    if (!profile.is_premium && profile.trial_count <= 0) {
       return NextResponse.json(
         { error: "Trial limit reached. Please upgrade to premium." },
         { status: 403 }
       );
-
-    // 🔥 Restore Image with latest Replicate format
-    const restoredResult = await replicate.run("flux-kontext-apps/restore-image", {
-      input: {
-        input_image: imageUrl,
-      },
-    });
-
-    const restored = extractUrl(restoredResult);
-    if (!restored) throw new Error("Failed to get restored image URL from Replicate");
-
-    // Save result to history
-    await supabase.from("history").insert({
-      user_id: userId,
-      original: imageUrl,
-      restored,
-    });
-
-    // Increment trial count for free users
-    if (!profile.is_premium) {
-      await supabase
-        .from("profiles")
-        .update({ trial_count: profile.trial_count + 1 })
-        .eq("id", userId);
     }
 
-    return NextResponse.json({ restored });
+    // 🧠 Run the Replicate model
+    const result = await replicate.run("flux-kontext-apps/restore-image", {
+      input: { input_image: imageUrl },
+    });
+
+    const restoredUrl = extractUrl(result);
+    if (!restoredUrl)
+      throw new Error("Failed to get restored image URL from Replicate");
+
+    // ✅ Insert history record
+    await supabase.from("history").insert({
+      user_id: userId,
+      original_url: imageUrl,
+      restored_url: restoredUrl,
+    });
+
+    // ✅ Decrement trial count via your Supabase RPC function
+    if (!profile.is_premium) {
+      const { error: decrementError } = await supabase.rpc("decrement_trial_count", {
+        user_id: userId,
+      });
+      if (decrementError) console.error("Trial decrement error:", decrementError);
+    }
+
+    return NextResponse.json({ restored: restoredUrl });
   } catch (err) {
     console.error("Pipeline error:", err);
     const message = err instanceof Error ? err.message : "Unknown error";
