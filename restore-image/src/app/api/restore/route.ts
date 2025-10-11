@@ -5,62 +5,48 @@ export async function POST(req: NextRequest) {
     const { imageUrl } = await req.json();
 
     if (!imageUrl) {
-      return NextResponse.json({ error: "Image URL is required" }, { status: 400 });
+      return NextResponse.json({ error: "No image URL provided" }, { status: 400 });
     }
 
     const apiKey = process.env.DEEPAI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "Missing DeepAI API key" }, { status: 500 });
+      console.error("❌ Missing DeepAI API key");
+      return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
     }
 
-    // 🧠 STEP 1: COLORIZE the image
+    console.log("🎨 Starting DeepAI colorization for:", imageUrl);
+
     const colorizedResponse = await fetch("https://api.deepai.org/api/colorizer", {
       method: "POST",
-      headers: {
-        "Api-Key": apiKey,
-      },
+      headers: { "Api-Key": apiKey },
       body: new URLSearchParams({ image: imageUrl }),
     });
 
     const colorizedData = await colorizedResponse.json();
 
-    console.log("Colorization status:", colorizedResponse.status);
-    console.log("Colorization response:", colorizedData);
+    console.log("🟢 DeepAI Status:", colorizedResponse.status);
+    console.log("🟢 DeepAI Response:", colorizedData);
 
-    if (!colorizedResponse.ok || !colorizedData.output_url) {
+    if (!colorizedResponse.ok) {
       return NextResponse.json(
-        { error: colorizedData.error || "Colorization failed" },
+        { error: `DeepAI request failed: ${colorizedData.error || "Unknown error"}` },
+        { status: colorizedResponse.status }
+      );
+    }
+
+    if (!colorizedData.output_url) {
+      return NextResponse.json(
+        { error: "No colorized image returned from DeepAI" },
         { status: 500 }
       );
     }
 
-    // 🧠 STEP 2: Enhance using Super Resolution (optional)
-    const enhancedResponse = await fetch("https://api.deepai.org/api/torch-srgan", {
-      method: "POST",
-      headers: {
-        "Api-Key": apiKey,
-      },
-      body: new URLSearchParams({ image: colorizedData.output_url }),
-    });
-
-    const enhancedData = await enhancedResponse.json();
-
-    console.log("Enhancement status:", enhancedResponse.status);
-    console.log("Enhancement response:", enhancedData);
-
-    if (!enhancedResponse.ok) {
-      return NextResponse.json(
-        { error: enhancedData.error || "Enhancement failed" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      restoredImage: enhancedData.output_url || colorizedData.output_url,
-    });
+    return NextResponse.json({ restoredUrl: colorizedData.output_url }, { status: 200 });
   } catch (error) {
-    console.error("Error restoring image:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("🔥 Error in /api/restore route:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
