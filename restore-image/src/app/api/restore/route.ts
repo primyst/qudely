@@ -9,83 +9,58 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.DEEPAI_API_KEY;
-
-    // ---- DEBUG: verify API key presence without printing the key itself ----
-    console.log("DEEPAI_API_KEY exists:", !!apiKey);
-    console.log("DEEPAI_API_KEY length:", apiKey?.length ?? 0);
-
     if (!apiKey) {
       return NextResponse.json({ error: "Missing DeepAI API key" }, { status: 500 });
     }
 
-    // Helper to call DeepAI endpoints with form-encoded body
-    async function callDeepAI(endpoint: string, image: string) {
-      const body = new URLSearchParams({ image });
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Api-Key": apiKey,
-        },
-        body,
-      });
+    // 🧠 STEP 1: COLORIZE the image
+    const colorizedResponse = await fetch("https://api.deepai.org/api/colorizer", {
+      method: "POST",
+      headers: {
+        "Api-Key": apiKey,
+      },
+      body: new URLSearchParams({ image: imageUrl }),
+    });
 
-      // Try parse JSON safely
-      let parsed;
-      try {
-        parsed = await res.json();
-      } catch (parseErr) {
-        console.error(`Failed to parse JSON from ${endpoint}`, parseErr);
-        parsed = null;
-      }
+    const colorizedData = await colorizedResponse.json();
 
-      return { ok: res.ok, status: res.status, body: parsed };
-    }
+    console.log("Colorization status:", colorizedResponse.status);
+    console.log("Colorization response:", colorizedData);
 
-    // 1) Colorize
-    const colorize = await callDeepAI("https://api.deepai.org/api/colorizer", imageUrl);
-
-    if (!colorize.ok || !colorize.body?.output_url) {
-      console.error("Colorization failed:", {
-        status: colorize.status,
-        body: colorize.body,
-      });
+    if (!colorizedResponse.ok || !colorizedData.output_url) {
       return NextResponse.json(
-        {
-          error: "Colorization failed",
-          details: colorize.body ?? `status:${colorize.status}`,
-        },
+        { error: colorizedData.error || "Colorization failed" },
         { status: 500 }
       );
     }
 
-    const colorizedUrl: string = colorize.body.output_url;
+    // 🧠 STEP 2: Enhance using Super Resolution (optional)
+    const enhancedResponse = await fetch("https://api.deepai.org/api/torch-srgan", {
+      method: "POST",
+      headers: {
+        "Api-Key": apiKey,
+      },
+      body: new URLSearchParams({ image: colorizedData.output_url }),
+    });
 
-    // 2) Super-resolution (optional)
-    const sr = await callDeepAI("https://api.deepai.org/api/torch-srgan", colorizedUrl);
+    const enhancedData = await enhancedResponse.json();
 
-    if (!sr.ok) {
-      // if SR failed, still return colorized result but include SR error details
-      console.warn("Super-resolution failed — returning colorized image instead:", {
-        status: sr.status,
-        body: sr.body,
-      });
+    console.log("Enhancement status:", enhancedResponse.status);
+    console.log("Enhancement response:", enhancedData);
 
-      return NextResponse.json({
-        success: true,
-        restoredImage: colorizedUrl,
-        warning: "Super-resolution failed; returned colorized image instead.",
-        srDetails: sr.body ?? `status:${sr.status}`,
-      });
+    if (!enhancedResponse.ok) {
+      return NextResponse.json(
+        { error: enhancedData.error || "Enhancement failed" },
+        { status: 500 }
+      );
     }
-
-    const restoredUrl: string = sr.body?.output_url || colorizedUrl;
 
     return NextResponse.json({
       success: true,
-      restoredImage: restoredUrl,
+      restoredImage: enhancedData.output_url || colorizedData.output_url,
     });
-  } catch (err) {
-    console.error("Internal error in /api/restore:", err);
+  } catch (error) {
+    console.error("Error restoring image:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
