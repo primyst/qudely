@@ -1,76 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const HF_SPACE_PREDICT = "https://primyst-primyst-deoldify.hf.space/run/predict";
-
-interface HFSuccessResponse {
-  data: string[];
-}
-
-interface HFErrorResponse {
-  error: string;
-  details?: string;
-}
-
-// ✅ Helper: strongly typed JSON response (no `any`, no generic issues)
-function jsonBody(data: HFSuccessResponse | HFErrorResponse, status = 200) {
-  return new NextResponse(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
 export async function POST(req: NextRequest) {
   try {
-    // Get form data
-    const formData = await req.formData();
-    const file = formData.get("file");
+    const { imageUrl } = await req.json();
 
-    if (!(file instanceof File)) {
-      return jsonBody({ error: "No file provided" }, 400);
+    if (!imageUrl) {
+      return NextResponse.json({ error: "Image URL is required" }, { status: 400 });
     }
 
-    // Convert file to Base64
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64 = `data:${file.type};base64,${buffer.toString("base64")}`;
-
-    // Prepare payload for Gradio
-    const payload = { data: [base64] };
-
-    // Get Hugging Face token securely
-    const HF_TOKEN = process.env.HF_TOKEN;
-    if (!HF_TOKEN) {
-      console.error("❌ HF_TOKEN missing in environment");
-      return jsonBody({ error: "Server misconfigured" }, 500);
+    const apiKey = process.env.DEEPAI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ error: "Missing DeepAI API key" }, { status: 500 });
     }
 
-    // Call Hugging Face private Space
-    const hfRes = await fetch(HF_SPACE_PREDICT, {
+    // 1️⃣ Colorize the image
+    const colorizedResponse = await fetch("https://api.deepai.org/api/colorizer", {
       method: "POST",
       headers: {
+        "Api-Key": apiKey,
         "Content-Type": "application/json",
-        Authorization: `Bearer ${HF_TOKEN}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ image: imageUrl }),
     });
 
-    const text = await hfRes.text();
+    const colorizedData = await colorizedResponse.json();
 
-    if (!hfRes.ok) {
-      console.error("HF error:", hfRes.status, text);
-      return jsonBody({ error: "HF error", details: text }, 502);
+    if (!colorizedData.output_url) {
+      return NextResponse.json({ error: "Colorization failed" }, { status: 500 });
     }
 
-    const result = JSON.parse(text) as HFSuccessResponse;
+    // 2️⃣ Optionally enhance (super resolution)
+    const enhancedResponse = await fetch("https://api.deepai.org/api/torch-srgan", {
+      method: "POST",
+      headers: {
+        "Api-Key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ image: colorizedData.output_url }),
+    });
 
-    // Validate HF response shape
-    if (!Array.isArray(result.data) || typeof result.data[0] !== "string") {
-      return jsonBody({ error: "Invalid response from Hugging Face" }, 500);
-    }
+    const enhancedData = await enhancedResponse.json();
 
-    return jsonBody(result);
-  } catch (err) {
-    console.error("Server error:", err);
-    return jsonBody({ error: "Internal Server Error" }, 500);
+    return NextResponse.json({
+      success: true,
+      restoredImage: enhancedData.output_url || colorizedData.output_url,
+    });
+  } catch (error) {
+    console.error("Error restoring image:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
