@@ -1,20 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, MouseEvent, TouchEvent } from "react";
 import Link from "next/link";
 import { Cpu, Heart, Zap, ChevronRight } from "lucide-react";
 
-export default function LandingPage() {
-  const [sliderPositions, setSliderPositions] = useState([50, 50, 50]);
+interface Image {
+  old: string;
+  new: string;
+  label: string;
+}
 
-  const images = [
+interface BeforeAfterSliderProps {
+  oldImg: string;
+  newImg: string;
+  index: number;
+}
+
+export default function LandingPage() {
+  const [sliderPositions, setSliderPositions] = useState<number[]>([50, 50, 50]);
+
+  const images: Image[] = [
     { old: "/landmarkold.jpg", new: "/landmarknew.jpg", label: "Historic Landmark" },
     { old: "/girlold.jpg", new: "/girlnew.jpg", label: "Portrait Restoration" },
     { old: "/familyold.jpg", new: "/familynew.jpg", label: "Family Memory" },
   ];
 
-  const BeforeAfterSlider = ({ oldImg, newImg, index }: { oldImg: string; newImg: string; index: number }) => {
-    const handleMouseMove = (e) => {
+  const BeforeAfterSlider = ({ oldImg, newImg, index }: BeforeAfterSliderProps) => {
+    const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const percentage = (x / rect.width) * 100;
@@ -25,7 +37,7 @@ export default function LandingPage() {
       });
     };
 
-    const handleTouchMove = (e) => {
+    const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.touches[0].clientX - rect.left;
       const percentage = (x / rect.width) * 100;
