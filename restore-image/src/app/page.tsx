@@ -13,7 +13,7 @@ export default function LandingPage() {
     { old: "/familyold.jpg", new: "/familynew.jpg", label: "Family Memory" },
   ];
 
-  const BeforeAfterSlider = ({ oldImg, newImg, index }) => {
+  const BeforeAfterSlider = ({ oldImg, newImg, index }: { oldImg: string; newImg: string; index: number }) => {
     const handleMouseMove = (e) => {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
