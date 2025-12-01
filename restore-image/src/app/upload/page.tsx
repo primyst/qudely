@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useForm, ValidationError } from "@formspree/react";
 
 type SpaceMessage = {
   type: string;
@@ -11,9 +12,9 @@ type SpaceMessage = {
 
 export default function UploadPage() {
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState("");
   const [iframeHeight, setIframeHeight] = useState(1200); // default height
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [formState, submit] = useForm(process.env.NEXT_PUBLIC_WAITLIST_FORM!);
 
   // Simulate loading for 3s
   useEffect(() => {
@@ -35,12 +36,6 @@ export default function UploadPage() {
     window.addEventListener("message", listener);
     return () => window.removeEventListener("message", listener);
   }, []);
-
-  const handleWaitlist = () => {
-    if (!email) return;
-    alert(`Thanks! We'll notify ${email} when advanced AI is available.`);
-    setEmail("");
-  };
 
   return (
     <main className="w-full min-h-screen bg-gray-50 text-gray-900 flex flex-col">
@@ -84,25 +79,34 @@ export default function UploadPage() {
           Premium Advanced AI Coming Soon
         </h3>
         <p className="text-gray-700 max-w-xl mx-auto mb-6">
-          We’re building a faster and more advanced AI photo restoration tool. 
-          Join the waitlist to get early access and updates.
+          We’re building a faster and more advanced AI photo restoration tool. Join the waitlist to get early access and updates.
         </p>
 
-        <div className="flex flex-col md:flex-row justify-center gap-4 max-w-xl mx-auto">
+        <form
+          onSubmit={submit}
+          className="flex flex-col md:flex-row justify-center gap-4 max-w-xl mx-auto"
+        >
           <input
             type="email"
+            name="email"
             placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            required
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
           />
           <button
-            onClick={handleWaitlist}
+            type="submit"
+            disabled={formState.submitting}
             className="px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:opacity-90 shadow-md hover:shadow-lg transition-all"
           >
-            Join Waitlist
+            {formState.submitting ? "Submitting..." : "Join Waitlist"}
           </button>
-        </div>
+        </form>
+
+        <ValidationError prefix="Email" field="email" errors={formState.errors} />
+
+        {formState.succeeded && (
+          <p className="text-green-600 mt-4 font-medium">Thanks! You are on the waitlist.</p>
+        )}
       </section>
     </main>
   );
