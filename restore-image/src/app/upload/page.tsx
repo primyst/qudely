@@ -4,37 +4,42 @@ import React, { useEffect, useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 
+type SpaceMessage = {
+  type: string;
+  height?: number;
+};
+
 export default function UploadPage() {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
-  const [iframeHeight, setIframeHeight] = useState(800); // default
+  const [iframeHeight, setIframeHeight] = useState(800); // default height
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    // simulate 3s loading
     const timer = setTimeout(() => setLoading(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for postMessage from HF Space
   useEffect(() => {
-    const listener = (event: MessageEvent) => {
-      // only process messages from HF domain
-      if (
-        typeof event.data === "object" &&
-        event.origin.includes("huggingface.co")
-      ) {
-        const msg = event.data as any;
-        if (msg.type === "spaceHeight") {
+    const listener = (event: MessageEvent<unknown>) => {
+      // Only accept messages from huggingface.co
+      if (!event.origin.includes("huggingface.co")) return;
+
+      // Check if event.data is an object with type property
+      if (typeof event.data === "object" && event.data !== null) {
+        const msg = event.data as SpaceMessage;
+        if (msg.type === "spaceHeight" && typeof msg.height === "number") {
           setIframeHeight(msg.height);
         }
       }
     };
+
     window.addEventListener("message", listener);
     return () => window.removeEventListener("message", listener);
   }, []);
 
   const handleWaitlist = () => {
+    if (!email) return;
     alert(`Thanks! We'll notify ${email} when advanced AI is available.`);
     setEmail("");
   };
@@ -57,7 +62,7 @@ export default function UploadPage() {
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-50">
             <Loader2 className="w-12 h-12 animate-spin text-black mb-4" />
-            <p className="text-black text-lg">Loading Qudely AI...</p>
+            <p className="text-black text-lg">Loading Qudely Colorizer...</p>
           </div>
         )}
 
@@ -98,4 +103,4 @@ export default function UploadPage() {
       </section>
     </main>
   );
-    }
+      }
