@@ -14,7 +14,7 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(true);
   const [iframeHeight, setIframeHeight] = useState(1200); // default height
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [formState, submit] = useForm(process.env.NEXT_PUBLIC_WAITLIST_FORM!);
+  const [formState, submit] = useForm(process.env.NEXT_PUBLIC_NEW_FORM!);
 
   // Simulate loading for 3s
   useEffect(() => {
