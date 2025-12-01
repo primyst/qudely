@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://qudely-ai.vercel.app
+
+# Sitemaps
+Sitemap: https://qudely-ai.vercel.app/sitemap.xml
