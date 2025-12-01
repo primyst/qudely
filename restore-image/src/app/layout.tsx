@@ -16,15 +16,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="google-site-verification" content="GEhIL5p4eL2t-sYJHEb4OFm_nJKqeq-5WOBt-_vHRpc" />
         {/* SEO Meta */}
         <title>{metadata.title}</title>
         <meta name="description" content={metadata.description} />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href={metadata.url} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-        {/* Google Site Verification */}
-        <meta name="google-site-verification" content="GEhIL5p4eL2t-sYJHEb4OFm_nJKqeq-5WOBt-_vHRpc" />
 
         {/* Open Graph / Facebook */}
         <meta property="og:title" content={metadata.title} />
