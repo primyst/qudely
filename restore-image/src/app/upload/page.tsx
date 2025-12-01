@@ -16,7 +16,7 @@ export default function UploadPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [formState, submit] = useForm(process.env.NEXT_PUBLIC_NEW_FORM!);
 
-  // Simulate initial load (you can remove this in production if HF Space loads fast)
+  // Simulate initial load (remove in production if HF Space loads instantly)
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2800);
     return () => clearTimeout(timer);
@@ -74,7 +74,7 @@ export default function UploadPage() {
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm z-10">
             <div className="text-center">
               <Loader2 className="w-16 h-16 animate-spin text-amber-600 mb-6" />
-              <p className="text-2xl font-medium text-gray-800">Waking up the AI...</p>
+              <p className="text-2xl font-medium text-gray-800">Waking up the AI…</p>
               <p className="text-gray-600 mt-2">This takes just a moment</p>
             </div>
           </div>
@@ -97,15 +97,14 @@ export default function UploadPage() {
         </div>
       </section>
 
-      {/* WAITLIST SECTION - Matches homepage */}
+      {/* WAITLIST SECTION */}
       <section className="py-24 px-6 bg-gradient-to-b from-gray-50 to-white border-t border-gray-100">
         <div className="max-w-2xl mx-auto text-center">
           <h3 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
             Next-Gen Restoration Coming Soon
           </h3>
           <p className="text-xl text-gray-600 mb-10 leading-relaxed">
-            Faster processing, face enhancement, scratch removal, and 4K upscaling — 
-            all in one click. Join the waitlist for early access.
+            Faster processing, face enhancement, scratch removal, and 4K upscaling — all in one click. Join the waitlist for early access.
           </p>
 
           <form onSubmit={submit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
@@ -121,25 +120,25 @@ export default function UploadPage() {
               disabled={formState.submitting}
               className="px-8 py-4 bg-amber-600 text-white font-semibold rounded-full hover:bg-amber-700 disabled:opacity-70 transition-all shadow-lg"
             >
-              {formState.submitting ? "Joining..." : "Get Early Access"}
+              {formState.submitting ? "Joining…" : "Get Early Access"}
             </button>
           </form>
 
           <ValidationError prefix="Email" field="email" errors={formState.errors} />
           {formState.succeeded && (
             <p className="mt-6 text-amber-700 font-semibold text-lg">
-              You're in! We'll email you when it's ready
+              You’re in! We’ll email you when it’s ready
             </p>
           )}
         </div>
       </section>
 
-      {/* FOOTER - Consistent with homepage */}
+      {/* FOOTER */}
       <footer className="py-12 bg-gray-900 text-gray-300 text-center border-t border-gray-800">
         <div className="max-w-4xl mx-auto px-6">
           <p className="text-2xl font-bold text-white mb-3">Qudely</p>
           <p className="text-sm mb-6">Preserving yesterday, for tomorrow.</p>
-          
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm">
             <p>
               Built with love by{" "}
