@@ -67,11 +67,10 @@ export default function UploadPage() {
         )}
 
         <iframe
-          ref={iframeRef}
-          src="https://aryadytm-photo-colorization.hf.space?__theme=light"
-          style={{ border: "none", width: "100%", height: iframeHeight }}
-          allow="camera; microphone; clipboard-read; clipboard-write;"
-        />
+  src="https://aryadytm-photo-colorization.hf.space?__theme=light"
+  style={{ border: "none", width: "100%", height: "2000px", overflow: "auto" }}
+  allow="camera; microphone; clipboard-read; clipboard-write;"
+/>
       </div>
 
       {/* WAITLIST SECTION */}
