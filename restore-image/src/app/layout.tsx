@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Qudely - AI Tools & Utilities',
+  title: 'Qudely - AI Image restoration tool',
   description: 'Qudely: AI-powered image restoration, colorization, and more.',
 };
 
