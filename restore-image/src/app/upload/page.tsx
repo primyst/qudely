@@ -87,7 +87,7 @@ export default function UploadPage() {
             className="w-full border-0 shadow-2xl"
             style={{
               height: `${iframeHeight}px`,
-              minHeight: "900px",
+              minHeight: "1900px",
               transition: "height 0.4s ease",
             }}
             allow="camera; microphone; clipboard-read; clipboard-write;"
