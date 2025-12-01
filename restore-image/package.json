@@ -11,7 +11,6 @@
   "dependencies": {
 "axios": "^1.12.2",
     "@bytescale/upload-widget-react": "^4.19.0",
-    "react-compare-slider": "^3.1.0",
     "@headlessui/react": "^2.2.9",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.58.0",
