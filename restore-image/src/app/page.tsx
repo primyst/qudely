@@ -158,9 +158,9 @@ export default function Home() {
             </p>
             <span className="hidden sm:inline">•</span>
             <p>
-              Advanced colorization powered by{" "}
-              <Link href="https://huggingface.co/aryadytm" target="_blank" className="font-medium text-amber-400 hover:underline">
-                Aryadytm
+              colorization powered by{" "}
+              <Link href="#" target="_blank" className="font-medium text-amber-400 hover:underline">
+                Aryadytm-photo-restoratiom
               </Link>
             </p>
           </div>
