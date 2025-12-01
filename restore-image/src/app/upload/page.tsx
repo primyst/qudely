@@ -85,11 +85,7 @@ export default function UploadPage() {
             ref={iframeRef}
             src="https://aryadytm-photo-colorization.hf.space?__theme=light"
             className="w-full border-0 shadow-2xl"
-            style={{
-              height: `${iframeHeight}px`,
-              minHeight: "1900px",
-              transition: "height 0.4s ease",
-            }}
+            style={{ border: "none", width: "100%", height: "2000px", overflow: "auto" }}
             allow="camera; microphone; clipboard-read; clipboard-write;"
             loading="lazy"
             title="Qudely AI Photo Restoration"
