@@ -15,7 +15,7 @@ const images: ImageItem[] = [
 ];
 
 export default function Home() {
-  const [formState, submit] = useForm(process.env.NEXT_PUBLIC_WAITLIST_FORM!);
+  const [formState, submit] = useForm(process.env.NEXT_PUBLIC_NEW_FORM!);
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
