@@ -46,9 +46,16 @@ export default function Home() {
         <div className="mt-12">
           <Link
             href="/upload"
-            className="inline-flex items-center gap-3 bg-gray-900 text-white px-10 py-5 rounded-full text-lg font-semibold hover:bg-gray-800 transition-all transform hover:scale-105 shadow-xl"
+            className="
+  inline-flex items-center gap-3 whitespace-nowrap 
+  bg-gray-900 text-white 
+  px-6 py-4 
+  text-base md:text-lg
+  rounded-full font-semibold 
+  hover:bg-gray-800 transition-all transform hover:scale-105 shadow-xl
+"
           >
-            Restore Your First Photo Free
+            Restore Your Photo For Free
             <ArrowRight className="w-5 h-5" />
           </Link>
           <p className="mt-4 text-gray-600">No signup • Instant results • Privacy guaranteed</p>
