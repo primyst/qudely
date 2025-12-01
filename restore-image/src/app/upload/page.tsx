@@ -143,12 +143,6 @@ export default function UploadPage() {
               </Link>
             </p>
             <span className="hidden sm:inline">•</span>
-            <p>
-              colorization powered by{" "}
-              <Link href="#" target="_blank" className="font-medium text-amber-400 hover:underline">
-                Aryadytm-photo-colorization
-              </Link>
-            </p>
           </div>
         </div>
       </footer>
