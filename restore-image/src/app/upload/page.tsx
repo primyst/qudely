@@ -71,7 +71,7 @@ export default function UploadPage() {
             border: "none",
             width: "100%",
             height: `${iframeHeight}px`,
-            minHeight: "1300px",
+            minHeight: "1400px",
           }}
           className="shadow-lg rounded-b-xl"
           allow="camera; microphone; clipboard-read; clipboard-write;"
