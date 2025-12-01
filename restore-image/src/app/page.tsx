@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { ShieldCheck, RefreshCcw, Image as ImageIcon } from "lucide-react";
 import { ReactCompareSlider, ReactCompareSliderImage } from "react-compare-slider";
+import { useForm, ValidationError } from "@formspree/react";
 
 type ImageItem = {
   old: string;
@@ -123,16 +124,32 @@ export default function Home() {
           We’re developing a more advanced AI image restoration tool with faster
           results and deeper enhancements. Join the waitlist to be notified first.
         </p>
-        <div className="flex flex-col md:flex-row justify-center gap-4 max-w-xl mx-auto">
-          <input
-            type="email"
-            placeholder="Enter your email"
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-          />
-          <button className="px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:opacity-90 shadow-md hover:shadow-lg transition-all">
-            Join Waitlist
-          </button>
-        </div>
+
+<form
+  onSubmit={submit}
+  className="flex flex-col md:flex-row justify-center gap-4 max-w-xl mx-auto"
+>
+  <input
+    type="email"
+    name="email"
+    placeholder="Enter your email"
+    required
+    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
+  />
+  <button
+    type="submit"
+    disabled={formState.submitting}
+    className="px-6 py-3 bg-gray-900 text-white font-medium rounded-lg hover:opacity-90 shadow-md hover:shadow-lg transition-all"
+  >
+    {formState.submitting ? "Submitting..." : "Join Waitlist"}
+  </button>
+</form>
+
+<ValidationError prefix="Email" field="email" errors={formState.errors} />
+
+{formState.succeeded && (
+  <p className="text-green-600 mt-4 font-medium">Thanks! You are on the waitlist.</p>
+)}
       </section>
     </main>
   );
