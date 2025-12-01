@@ -21,9 +21,7 @@ export default function Home() {
     <main className="min-h-screen bg-white text-gray-800 flex flex-col">
       {/* NAV */}
       <nav className="w-full flex items-center justify-between px-6 py-6 bg-white/80 backdrop-blur-lg border-b border-gray-100 sticky top-0 z-50">
-        <div className="text-3xl font-bold tracking-tighter text-gray-900">
-          Qudely
-        </div>
+        <div className="text-3xl font-bold tracking-tighter text-gray-900">Qudely</div>
         <Link
           href="/upload"
           className="group flex items-center gap-2 px-7 py-3 bg-gray-900 text-white rounded-full font-medium hover:bg-gray-800 transition-all hover:scale-105 shadow-lg"
@@ -35,15 +33,14 @@ export default function Home() {
 
       {/* HERO */}
       <section className="relative py-24 px-6 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-50/50 via-white to-white -z-10"></div>
-        
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-50/50 via-white to-white -z-10" />
+
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900">
           Bring Old Photos
           <span className="block text-amber-600 mt-3">Back to Life</span>
         </h1>
         <p className="mt-8 max-w-3xl mx-auto text-xl md:text-2xl text-gray-600 leading-relaxed">
-          Qudely uses advanced AI to restore faded, scratched, or black-and-white photos 
-          with stunning clarity — instantly and for free.
+          Qudely uses advanced AI to restore faded, scratched, or black-and-white photos with stunning clarity — instantly and for free.
         </p>
 
         <div className="mt-12">
@@ -113,8 +110,7 @@ export default function Home() {
             Next-Gen Restoration Coming Soon
           </h3>
           <p className="text-xl text-gray-600 mb-10">
-            Ultra-realistic colorization, face enhancement, and 4K upscaling. 
-            Be the first to try it.
+            Ultra-realistic colorization, face enhancement, and 4K upscaling. Be the first to try it.
           </p>
 
           <form onSubmit={submit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
@@ -130,14 +126,14 @@ export default function Home() {
               disabled={formState.submitting}
               className="px-8 py-4 bg-amber-600 text-white font-semibold rounded-full hover:bg-amber-700 disabled:opacity-70 transition-all shadow-lg"
             >
-              {formState.submitting ? "Joining..." : "Join Waitlist"}
+              {formState.submitting ? "Joining…" : "Join Waitlist"}
             </button>
           </form>
 
           <ValidationError prefix="Email" field="email" errors={formState.errors} />
           {formState.succeeded && (
             <p className="mt-6 text-amber-700 font-semibold text-lg">
-              Thank you! You're on the list
+              Thank you! You’re on the list
             </p>
           )}
         </div>
@@ -148,7 +144,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-6">
           <p className="text-2xl font-bold text-white mb-3">Qudely</p>
           <p className="text-sm mb-6">Preserving yesterday, for tomorrow.</p>
-          
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm">
             <p>
               Built with love by{" "}
@@ -160,7 +156,7 @@ export default function Home() {
             <p>
               colorization powered by{" "}
               <Link href="#" target="_blank" className="font-medium text-amber-400 hover:underline">
-                Aryadytm-photo-restoratiom
+                Aryadytm-photo-restoration
               </Link>
             </p>
           </div>
